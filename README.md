@@ -1,5 +1,7 @@
 # tubalr
 
+**Live: https://cjstewart88.github.io/tubalr-2026/**
+
 A tiny, client-side recreation of [Tubalr](https://news.ycombinator.com/item?id=3146182):
 type an artist, and it plays a continuous YouTube session built from Last.fm data.
 
