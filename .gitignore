@@ -1,0 +1,7 @@
+# Real API keys live here — never commit them. Use config.example.js as the template.
+js/config.js
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.vscode/

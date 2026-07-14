@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>tubalr</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">tubalr</div>
+    <form id="search-form" class="search" autocomplete="off">
+      <input
+        id="search-input"
+        class="search-input"
+        type="text"
+        placeholder="search for artists or bands"
+        aria-label="Search for artists or bands"
+      />
+      <button type="submit" data-mode="only" class="btn btn-mode">only</button>
+      <button type="button" data-mode="similar" class="btn btn-mode">similar</button>
+    </form>
+  </header>
+
+  <main class="stage">
+    <section class="player-col">
+      <div class="player-frame">
+        <div id="player"></div>
+      </div>
+    </section>
+
+    <aside class="playlist-col">
+      <ul id="playlist" class="playlist" aria-label="Playlist"></ul>
+      <div id="status" class="status" role="status"></div>
+    </aside>
+  </main>
+
+  <footer class="transport">
+    <button id="btn-shuffle" class="ctrl" title="Shuffle" aria-label="Shuffle" aria-pressed="false">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+    </button>
+    <button id="btn-prev" class="ctrl" title="Previous" aria-label="Previous">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5" stroke-width="2"/></svg>
+    </button>
+    <button id="btn-play" class="ctrl ctrl-play" title="Play / Pause" aria-label="Play or pause">
+      <svg class="icon-play" viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+      <svg class="icon-pause" viewBox="0 0 24 24" width="22" height="22" fill="currentColor" hidden><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+    </button>
+    <button id="btn-next" class="ctrl" title="Next" aria-label="Next">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19" stroke-width="2"/></svg>
+    </button>
+  </footer>
+
+  <!-- Config first (defines window.TUBALR_CONFIG), then modules in dependency order. -->
+  <script src="js/config.js"></script>
+  <script src="js/lastfm.js"></script>
+  <script src="js/youtube.js"></script>
+  <script src="js/playlist.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

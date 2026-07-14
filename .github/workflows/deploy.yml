@@ -1,0 +1,54 @@
+name: Deploy to GitHub Pages
+
+# Publishes the static site to GitHub Pages. The API keys are NOT stored in the
+# repo — they're injected into js/config.js from repository secrets at build time.
+# One-time setup:
+#   1. Settings -> Secrets and variables -> Actions: add LASTFM_KEY and YOUTUBE_KEY.
+#   2. Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one deploy at a time; newer pushes supersede in-flight runs.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate js/config.js from secrets
+        env:
+          LASTFM_KEY: ${{ secrets.LASTFM_KEY }}
+          YOUTUBE_KEY: ${{ secrets.YOUTUBE_KEY }}
+        run: |
+          cat > js/config.js <<EOF
+          window.TUBALR_CONFIG = {
+            lastfmKey: "${LASTFM_KEY}",
+            youtubeKey: "${YOUTUBE_KEY}",
+          };
+          EOF
+
+      - uses: actions/configure-pages@v5
+
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
