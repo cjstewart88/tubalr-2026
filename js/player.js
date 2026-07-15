@@ -56,7 +56,7 @@ window.Tubalr = window.Tubalr || {};
   function launch(track) {
     youtube.load(track.videoId); // loadVideoById also starts playback
     playing = true;
-    status(track.artist + " – " + track.title);
+    status(""); // clear any "finding video…" note; the title isn't shown above the video
     notify();
     prefetchNext();
   }
