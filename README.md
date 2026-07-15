@@ -46,15 +46,10 @@ console. When the quota is exhausted the app shows a message instead of failing 
 
 ## Run
 
-Open `index.html` directly in a browser, **or** serve the folder statically:
-
-```sh
-python -m http.server 8000
-# then visit http://localhost:8000
-```
-
-A static server is recommended — if you restrict the YouTube key by referrer, playback
-from `file://` (origin `null`) won't be allowed.
+There's no build step. You can open `index.html` directly in a browser to load the
+UI, but that won't be a fully working app: if you restrict the YouTube key by HTTP
+referrer, playback from `file://` (origin `null`) is blocked. Serve the folder from
+any static server so it has a real origin.
 
 ## Deploy to GitHub Pages
 
