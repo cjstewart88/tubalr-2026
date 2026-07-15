@@ -8,6 +8,8 @@ window.Tubalr = window.Tubalr || {};
 
   var youtube = Tubalr.youtube;
 
+  var FAIL_STREAK_STOP = 3; // consecutive unplayable tracks before we stop and explain
+
   var queue = []; // [{ artist, title, query, videoId }]
   var order = []; // permutation of queue indices = the play order
   var pos = 0; // position within `order`
@@ -108,17 +110,9 @@ window.Tubalr = window.Tubalr || {};
   }
 
   function advance(dir) {
-    var p = pos + dir;
-    if (p < 0) {
-      status("Start of playlist.");
-      return;
-    }
-    if (p >= order.length) {
-      playing = false;
-      status("End of playlist.");
-      notify();
-      return;
-    }
+    if (!order.length) return;
+    var p = (pos + dir) % order.length;
+    if (p < 0) p += order.length; // JS % keeps sign; normalize for dir === -1
     playAt(p, dir);
   }
 
@@ -209,16 +203,17 @@ window.Tubalr = window.Tubalr || {};
     }
   }
 
-  function onYtError() {
-    // Current video failed to play (removed / embedding disabled) — skip it.
+  function onYtError(code) {
+    // A video failed (removed / embedding disabled / bot-check block). Skip past
+    // isolated failures silently, but once enough fail in a row, stop the session:
+    // the user can search again or click a track to reset.
     failStreak++;
-    if (failStreak >= order.length) {
+    if (failStreak >= Math.min(FAIL_STREAK_STOP, order.length)) {
       playing = false;
-      status("Couldn't play this playlist (videos unavailable).", true);
+      status("Something went wrong: " + code, true);
       notify();
       return;
     }
-    status("Video unavailable, skipping…");
     advance(1);
   }
 
