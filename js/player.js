@@ -15,6 +15,7 @@ window.Tubalr = window.Tubalr || {};
   var pos = 0; // position within `order`
   var playing = false;
   var failStreak = 0; // consecutive unresolved tracks (loop guard)
+  var repeatMode = "all"; // "all" = loop the queue; "one" = replay current on end
 
   var cb = { onChange: function () {}, onStatus: function () {} };
 
@@ -44,6 +45,7 @@ window.Tubalr = window.Tubalr || {};
       queue: queue,
       currentIndex: queue.length ? order[pos] : -1,
       playing: playing,
+      repeatMode: repeatMode,
     });
   }
 
@@ -121,6 +123,7 @@ window.Tubalr = window.Tubalr || {};
     order = range(queue.length);
     pos = 0;
     failStreak = 0;
+    repeatMode = "all"; // each new playlist defaults to looping the whole queue
     if (!queue.length) {
       playing = false;
       status("No tracks found.", true);
@@ -153,6 +156,13 @@ window.Tubalr = window.Tubalr || {};
     if (playing) youtube.pause();
     else youtube.play();
     // playing flag + button state are synced via the YT state-change handler.
+  }
+
+  // Flip between looping the whole queue ("all") and replaying the current track
+  // on end ("one"). Only affects natural track-end; manual skips still move tracks.
+  function toggleRepeat() {
+    repeatMode = repeatMode === "all" ? "one" : "all";
+    notify();
   }
 
   // Reshuffle the whole queue and immediately play from the top of the new order.
@@ -211,7 +221,8 @@ window.Tubalr = window.Tubalr || {};
     youtube.setHandlers({
       onEnded: function () {
         failStreak = 0;
-        advance(1);
+        if (repeatMode === "one") playAt(pos, 1); // replay current (videoId cached)
+        else advance(1);
       },
       onError: onYtError,
       onStateChange: onYtState,
@@ -224,6 +235,7 @@ window.Tubalr = window.Tubalr || {};
     next: next,
     prev: prev,
     togglePlay: togglePlay,
+    toggleRepeat: toggleRepeat,
     shuffleQueue: shuffleQueue,
     playByQueueIndex: playByQueueIndex,
   };

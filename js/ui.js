@@ -28,13 +28,20 @@ window.Tubalr = window.Tubalr || {};
     els.prev = $("btn-prev");
     els.play = $("btn-play");
     els.next = $("btn-next");
+    els.repeat = $("btn-repeat");
     els.playIcon = $("play-pause-icon");
+    els.repeatIcon = $("repeat-icon");
   }
 
   // Icon markup for the action the play/pause button performs (the opposite of
   // the current state): show "pause" while playing, "play" while paused.
   var ICON_PLAY = '<polygon points="6 4 20 12 6 20 6 4"/>';
   var ICON_PAUSE = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+
+  // Repeat icon: the loop for "all"; the loop plus a small "1" for "one".
+  var REPEAT_LOOP = '<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>';
+  var ICON_REPEAT_ALL = REPEAT_LOOP;
+  var ICON_REPEAT_ONE = REPEAT_LOOP + '<path d="M11 10.5 12.5 9.5 12.5 14.5"/>';
 
   function setStatus(msg, isError) {
     els.status.textContent = msg || "";
@@ -71,10 +78,20 @@ window.Tubalr = window.Tubalr || {};
     els.play.setAttribute("aria-label", isPlaying ? "Pause" : "Play");
   }
 
+  function reflectRepeat(mode) {
+    var one = mode === "one";
+    els.repeatIcon.innerHTML = one ? ICON_REPEAT_ONE : ICON_REPEAT_ALL;
+    els.repeat.classList.toggle("active", one);
+    var label = one ? "Repeat one" : "Repeat all";
+    els.repeat.setAttribute("aria-label", label);
+    els.repeat.setAttribute("title", label);
+  }
+
   // player -> UI
   function onChange(state) {
     highlightCurrent(state.currentIndex);
     reflectPlaying(state.playing);
+    reflectRepeat(state.repeatMode);
   }
 
   function setBuilding(on) {
@@ -137,6 +154,7 @@ window.Tubalr = window.Tubalr || {};
     els.prev.addEventListener("click", player.prev);
     els.play.addEventListener("click", player.togglePlay);
     els.next.addEventListener("click", player.next);
+    els.repeat.addEventListener("click", player.toggleRepeat);
   }
 
   function init() {
