@@ -221,8 +221,13 @@ window.Tubalr = window.Tubalr || {};
     youtube.setHandlers({
       onEnded: function () {
         failStreak = 0;
-        if (repeatMode === "one") playAt(pos, 1); // replay current (videoId cached)
-        else advance(1);
+        if (repeatMode === "one") {
+          youtube.replay(); // seek the current video back to 0 and play it again
+          playing = true;
+          notify();
+        } else {
+          advance(1);
+        }
       },
       onError: onYtError,
       onStateChange: onYtState,

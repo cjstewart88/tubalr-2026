@@ -132,6 +132,15 @@ window.Tubalr = window.Tubalr || {};
     });
   }
 
+  // Restart the currently loaded video from the top. Used for repeat-one:
+  // loadVideoById with the same id that just ENDED is unreliable, so seek instead.
+  function replay() {
+    whenReady(function () {
+      player.seekTo(0, true);
+      player.playVideo();
+    });
+  }
+
   function pause() {
     if (ready && player) player.pauseVideo();
   }
@@ -146,6 +155,7 @@ window.Tubalr = window.Tubalr || {};
     createPlayer: createPlayer,
     load: load,
     play: play,
+    replay: replay,
     pause: pause,
     setHandlers: setHandlers,
   };

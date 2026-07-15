@@ -41,7 +41,10 @@ window.Tubalr = window.Tubalr || {};
   // Repeat icon: the loop for "all"; the loop plus a small "1" for "one".
   var REPEAT_LOOP = '<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>';
   var ICON_REPEAT_ALL = REPEAT_LOOP;
-  var ICON_REPEAT_ONE = REPEAT_LOOP + '<path d="M11 10.5 12.5 9.5 12.5 14.5"/>';
+  // Solid "1" digit filled in the loop's center so the mode reads at a glance.
+  var ICON_REPEAT_ONE =
+    REPEAT_LOOP +
+    '<polygon fill="currentColor" stroke="none" points="12.9,9.3 12.9,14.9 11.5,14.9 11.5,11 10.4,11 10.4,10 11.6,9.3"/>';
 
   function setStatus(msg, isError) {
     els.status.textContent = msg || "";
