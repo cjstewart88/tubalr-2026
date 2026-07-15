@@ -1,110 +1,144 @@
+/* Tubalr — a modern take on the original look: Pacifico logo, the #efefef / teal
+   / #666 palette, a centered search, and a dark playlist panel on the right.
+   Vanilla CSS only; visibility is driven by :has() rather than JS toggles. */
+
 :root {
-  --blue: #3b9ae1;
-  --blue-dark: #2f88cc;
-  --text: #3a3a3a;
-  --muted: #9a9a9a;
-  --border: #e2e2e2;
-  --bg: #fafafa;
-  --panel: #ffffff;
-  --row-hover: #f4f7fb;
-  --header-h: 88px;
-  --transport-h: 64px;
+  --bg: #efefef;
+  --text: #666;
+  --ink: #464646;      /* logo / headings */
+  --teal: #60b99a;     /* the classic accent */
+  --orange: #f77825;   /* secondary accent */
+  --field-border: #cecfd1;
+  --field-focus: #999;
+
+  --panel-w: 264px;
+  --font: "Lucida Grande", "Segoe UI", Tahoma, Verdana, Arial, sans-serif;
 }
 
 * { box-sizing: border-box; }
 
-html, body {
-  margin: 0;
-  height: 100%;
-}
+html, body { height: 100%; }
 
 body {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
+  margin: 0;
+  min-height: 100%;
   background: var(--bg);
   color: var(--text);
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  font-size: 15px;
+  font: 13px/1.5 var(--font);
   -webkit-font-smoothing: antialiased;
+  transition: padding-right 0.3s ease;
 }
 
-/* ---------- Header ---------- */
-.topbar {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  padding: 22px 32px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--border);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+/* When the playlist docks on the right, reserve its width so the centered
+   .stage recenters within the remaining white space (fixed panel ignores this). */
+@media (min-width: 861px) {
+  body:has(#playlist li) { padding-right: var(--panel-w); }
 }
 
+a { color: inherit; text-decoration: none; }
+
+/* ---------- Centered column ---------- */
+.stage {
+  width: min(92vw, 500px);
+  margin: 0 auto;
+  padding: clamp(48px, 14vh, 160px) 0 64px;
+  text-align: center;
+}
+
+/* ---------- Logo ---------- */
 .brand {
-  font-size: 30px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  color: #2b2b2b;
+  margin: 0 0 26px;
+  font: 60px/1 "Pacifico", cursive;
+  cursor: default;
 }
 
+.brand a {
+  color: var(--ink);
+  text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.6);
+  transition: color 0.4s ease;
+}
+
+.brand a:hover { color: var(--teal); }
+
+/* ---------- Search ---------- */
 .search {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  flex: 1;
-  max-width: 620px;
+  justify-content: center;
+  gap: 8px;
 }
 
 .search-input {
-  flex: 1;
-  padding: 10px 14px;
-  font-size: 15px;
+  flex: 1 1 260px;
+  max-width: 320px;
+  height: 34px;
+  padding: 0 12px;
   color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  font: 13px var(--font);
+  background: #fff;
+  border: 1px solid var(--field-border);
+  border-radius: 4px;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .search-input:focus {
-  border-color: var(--blue);
-  box-shadow: 0 0 0 3px rgba(59, 154, 225, 0.15);
+  border-color: var(--field-focus);
+  box-shadow: 0 0 0 3px rgba(96, 185, 154, 0.18);
 }
+
+.modes { display: inline-flex; gap: 6px; }
 
 .btn {
-  font-size: 15px;
-  border: none;
-  border-radius: 6px;
+  height: 34px;
+  min-width: 62px;
+  padding: 0 16px;
+  color: var(--text);
+  font: 13px var(--font);
+  background: linear-gradient(#f7f7f7, #f0f0f0);
+  border: 1px solid var(--field-border);
+  border-radius: 4px;
   cursor: pointer;
-  color: #fff;
-  background: var(--blue);
-  padding: 10px 20px;
-  transition: background 0.15s, opacity 0.15s;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 
-.btn:hover { background: var(--blue-dark); }
-.btn:disabled { opacity: 0.5; cursor: default; }
-
-/* ---------- Stage (player + playlist) ---------- */
-.stage {
-  flex: 1;
-  display: flex;
-  min-height: 0;
+.btn:hover {
+  color: var(--teal);
+  border-color: var(--teal);
+  background: linear-gradient(#fff, #f4f4f4);
 }
 
-.player-col {
-  flex: 1 1 60%;
-  background: #000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 0;
+.btn:active { background: linear-gradient(#eee, #f4f4f4); }
+.btn:disabled { opacity: 0.55; cursor: default; color: var(--text); border-color: var(--field-border); }
+
+/* ---------- Hint (before first search) ---------- */
+.hint {
+  max-width: 380px;
+  margin: 18px auto 0;
+  color: #7a7a7a;
+  line-height: 1.6;
 }
+
+/* ---------- Status line ---------- */
+.status {
+  min-height: 18px;
+  margin-top: 16px;
+  color: #8a8a8a;
+}
+
+.status.error { color: #bd5e55; }
+
+/* ---------- Now playing (player + transport) ---------- */
+.now-playing { margin-top: 26px; }
 
 .player-frame {
-  position: relative;
   width: 100%;
-  height: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 8px 6px 18px rgba(0, 0, 0, 0.35);
 }
 
 #player,
@@ -115,73 +149,12 @@ body {
   display: block;
 }
 
-.playlist-col {
-  flex: 1 1 40%;
-  max-width: 460px;
-  display: flex;
-  flex-direction: column;
-  background: var(--panel);
-  border-left: 1px solid var(--border);
-  min-height: 0;
-}
-
-.playlist {
-  list-style: none;
-  margin: 0;
-  padding: 8px 0;
-  overflow-y: auto;
-  flex: 1;
-}
-
-.playlist li {
-  padding: 12px 22px;
-  color: var(--text);
-  cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  border-bottom: 1px solid #f2f2f2;
-  transition: background 0.1s;
-}
-
-.playlist li:hover { background: var(--row-hover); }
-
-.playlist li.current {
-  color: var(--blue);
-  font-weight: 500;
-}
-
-.playlist li.pending { color: var(--muted); }
-
-.status {
-  padding: 14px 22px;
-  color: var(--muted);
-  font-size: 13px;
-  border-top: 1px solid var(--border);
-  min-height: 20px;
-}
-
-.status.error { color: #c0392b; }
-
-/* Empty-state hint shown before a search */
-.playlist:empty::after {
-  content: "Search an artist, then hit only or similar.";
-  display: block;
-  padding: 40px 22px;
-  color: var(--muted);
-  white-space: normal;
-}
-
-/* ---------- Transport ---------- */
 .transport {
-  height: var(--transport-h);
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 18px;
-  padding: 0 32px;
-  background: var(--panel);
-  border-top: 1px solid var(--border);
+  justify-content: center;
+  gap: 10px;
+  margin-top: 16px;
 }
 
 .ctrl {
@@ -190,40 +163,105 @@ body {
   justify-content: center;
   width: 40px;
   height: 40px;
-  border: none;
+  color: #8a8a8a;
   background: transparent;
-  color: #777;
+  border: none;
   border-radius: 50%;
   cursor: pointer;
   transition: color 0.15s, background 0.15s;
 }
 
-.ctrl:hover { color: var(--blue); background: var(--row-hover); }
-.ctrl:disabled { color: #ccc; cursor: default; background: transparent; }
+.ctrl-spacer { width: 40px; height: 40px; }
 
-.ctrl-play { color: #444; }
+.ctrl:hover { color: var(--teal); background: rgba(96, 185, 154, 0.12); }
+.ctrl:disabled { color: #ccc; background: transparent; cursor: default; }
+.ctrl-play { width: 48px; height: 48px; color: var(--ink); }
+.ctrl[aria-pressed="true"] { color: var(--teal); }
 
-.ctrl[aria-pressed="true"] { color: var(--blue); }
+/* ---------- Playlist panel (right, dark) ---------- */
+.playlist-col {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: var(--panel-w);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0.9));
+  border-left: 1px solid #2a2a2a;
+  box-shadow: -3px 0 12px rgba(0, 0, 0, 0.3);
+  z-index: 900;
+}
 
-/* ---------- Config-missing banner ---------- */
+.playlist {
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.playlist li {
+  padding: 12px 18px;
+  color: #cfcfcf;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-bottom: 1px solid #2a2a2a;
+  text-shadow: 1px 1px #1a1a1a;
+  transition: color 0.12s, background 0.12s;
+}
+
+.playlist li:hover { color: #fff; background: rgba(255, 255, 255, 0.05); }
+
+.playlist li.current {
+  color: #fff;
+  /* Solid left bar (inset border) + a purely horizontal glow: the gradient
+     fades along X only and fills the full row height, so nothing bleeds from
+     the top, bottom, or right edges. */
+  background:
+    linear-gradient(to right, rgba(96, 185, 154, 0.55), rgba(96, 185, 154, 0) 16px),
+    rgba(255, 255, 255, 0.05);
+  box-shadow: inset 3px 0 0 var(--teal);
+}
+
+.playlist li.pending { color: #8f8f8f; }
+
+/* ---------- Visibility: driven by whether the playlist has rows ---------- */
+.now-playing,
+.playlist-col { display: none; }
+
+body:has(#playlist li) .hint { display: none; }
+body:has(#playlist li) .now-playing { display: block; }
+body:has(#playlist li) .playlist-col { display: flex; }
+
+/* ---------- Config-missing banner (inserted at top of <body>) ---------- */
 .config-banner {
-  padding: 16px 32px;
+  padding: 14px 20px;
   background: #fff8e1;
   border-bottom: 1px solid #f0e0a8;
   color: #7a5c00;
-  font-size: 14px;
+  text-align: center;
 }
+
 .config-banner code {
-  background: rgba(0,0,0,0.06);
+  background: rgba(0, 0, 0, 0.06);
   padding: 1px 5px;
   border-radius: 3px;
 }
 
-/* ---------- Responsive ---------- */
-@media (max-width: 760px) {
-  .stage { flex-direction: column; }
-  .player-col { flex: 0 0 auto; aspect-ratio: 16 / 9; width: 100%; }
-  .playlist-col { max-width: none; border-left: none; border-top: 1px solid var(--border); }
-  .topbar { flex-wrap: wrap; gap: 14px; padding: 16px; }
-  .search { max-width: none; width: 100%; }
+/* ---------- Responsive: dock the panel below on narrow screens ---------- */
+@media (max-width: 860px) {
+  .playlist-col {
+    position: static;
+    width: 100%;
+    height: auto;
+    max-height: 340px;
+    border-left: none;
+    border-top: 1px solid #2a2a2a;
+    box-shadow: none;
+  }
+
+  body:has(#playlist li) .stage { padding-bottom: 32px; }
 }

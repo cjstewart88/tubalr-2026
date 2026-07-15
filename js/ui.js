@@ -28,9 +28,13 @@ window.Tubalr = window.Tubalr || {};
     els.prev = $("btn-prev");
     els.play = $("btn-play");
     els.next = $("btn-next");
-    els.playIcon = els.play.querySelector(".icon-play");
-    els.pauseIcon = els.play.querySelector(".icon-pause");
+    els.playIcon = $("play-pause-icon");
   }
+
+  // Icon markup for the action the play/pause button performs (the opposite of
+  // the current state): show "pause" while playing, "play" while paused.
+  var ICON_PLAY = '<polygon points="6 4 20 12 6 20 6 4"/>';
+  var ICON_PAUSE = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
 
   function setStatus(msg, isError) {
     els.status.textContent = msg || "";
@@ -63,8 +67,7 @@ window.Tubalr = window.Tubalr || {};
   }
 
   function reflectPlaying(isPlaying) {
-    els.playIcon.hidden = isPlaying;
-    els.pauseIcon.hidden = !isPlaying;
+    els.playIcon.innerHTML = isPlaying ? ICON_PAUSE : ICON_PLAY;
     els.play.setAttribute("aria-label", isPlaying ? "Pause" : "Play");
   }
 
