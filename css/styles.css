@@ -176,7 +176,6 @@ a { color: inherit; text-decoration: none; }
 .ctrl:hover { color: var(--teal); background: rgba(96, 185, 154, 0.12); }
 .ctrl:disabled { color: #ccc; background: transparent; cursor: default; }
 .ctrl-play { width: 48px; height: 48px; color: var(--ink); }
-.ctrl[aria-pressed="true"] { color: var(--teal); }
 
 /* ---------- Playlist panel (right, dark) ---------- */
 .playlist-col {

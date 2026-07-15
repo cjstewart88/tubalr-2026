@@ -1,5 +1,5 @@
 // Transport + queue state machine. Owns the play order, lazy video resolution,
-// auto-advance, shuffle, and play/pause. Talks to youtube.js for playback and
+// auto-advance, shuffle (reshuffle-and-restart), and play/pause. Talks to youtube.js and
 // reports state back to the UI via callbacks passed to init().
 window.Tubalr = window.Tubalr || {};
 
@@ -13,7 +13,6 @@ window.Tubalr = window.Tubalr || {};
   var queue = []; // [{ artist, title, query, videoId }]
   var order = []; // permutation of queue indices = the play order
   var pos = 0; // position within `order`
-  var shuffle = false;
   var playing = false;
   var failStreak = 0; // consecutive unresolved tracks (loop guard)
 
@@ -45,7 +44,6 @@ window.Tubalr = window.Tubalr || {};
       queue: queue,
       currentIndex: queue.length ? order[pos] : -1,
       playing: playing,
-      shuffle: shuffle,
     });
   }
 
@@ -121,7 +119,6 @@ window.Tubalr = window.Tubalr || {};
   function start(newQueue) {
     queue = newQueue || [];
     order = range(queue.length);
-    shuffle = false;
     pos = 0;
     failStreak = 0;
     if (!queue.length) {
@@ -158,21 +155,13 @@ window.Tubalr = window.Tubalr || {};
     // playing flag + button state are synced via the YT state-change handler.
   }
 
-  function toggleShuffle() {
+  // Reshuffle the whole queue and immediately play from the top of the new order.
+  // A one-shot action, not a mode — spam it to reroll the order.
+  function shuffleQueue() {
     if (!queue.length) return;
-    var currentQI = order[pos];
-    shuffle = !shuffle;
-    if (shuffle) {
-      order = shuffled(range(queue.length));
-      var at = order.indexOf(currentQI);
-      order.splice(at, 1);
-      order.unshift(currentQI); // keep the current track playing, first in order
-      pos = 0;
-    } else {
-      order = range(queue.length);
-      pos = currentQI;
-    }
-    notify();
+    order = shuffled(range(queue.length));
+    failStreak = 0;
+    playAt(0, 1);
   }
 
   // Prefetch the next track's videoId so the transition is instant (and so the
@@ -235,7 +224,7 @@ window.Tubalr = window.Tubalr || {};
     next: next,
     prev: prev,
     togglePlay: togglePlay,
-    toggleShuffle: toggleShuffle,
+    shuffleQueue: shuffleQueue,
     playByQueueIndex: playByQueueIndex,
   };
 })(window.Tubalr);

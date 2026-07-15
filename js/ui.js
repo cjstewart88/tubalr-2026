@@ -1,5 +1,5 @@
 // DOM layer: renders the playlist, wires the search form + transport buttons,
-// and reflects player state (current row, play/pause icon, shuffle pressed).
+// and reflects player state (current row, play/pause icon).
 window.Tubalr = window.Tubalr || {};
 
 (function (Tubalr) {
@@ -71,15 +71,10 @@ window.Tubalr = window.Tubalr || {};
     els.play.setAttribute("aria-label", isPlaying ? "Pause" : "Play");
   }
 
-  function reflectShuffle(isShuffle) {
-    els.shuffle.setAttribute("aria-pressed", isShuffle ? "true" : "false");
-  }
-
   // player -> UI
   function onChange(state) {
     highlightCurrent(state.currentIndex);
     reflectPlaying(state.playing);
-    reflectShuffle(state.shuffle);
   }
 
   function setBuilding(on) {
@@ -138,7 +133,7 @@ window.Tubalr = window.Tubalr || {};
       player.playByQueueIndex(Number(li.dataset.index));
     });
 
-    els.shuffle.addEventListener("click", player.toggleShuffle);
+    els.shuffle.addEventListener("click", player.shuffleQueue);
     els.prev.addEventListener("click", player.prev);
     els.play.addEventListener("click", player.togglePlay);
     els.next.addEventListener("click", player.next);
