@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tubalr — icon generator</title>
+
+  <!-- One-time tool: NOT part of the app and never referenced by index.html.
+       Renders the PWA icon set from the current branding (teal squircle + white
+       Pacifico "t"), then offers PNG downloads. Save the files into ../icons/
+       and commit them, so the shipped app stays free of any build/tooling. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet" />
+
+  <style>
+    :root { --teal: #60b99a; --ink: #464646; }
+    body {
+      margin: 0;
+      padding: 32px;
+      background: #efefef;
+      color: #464646;
+      font: 14px/1.5 "Lucida Grande", "Segoe UI", Tahoma, Arial, sans-serif;
+    }
+    h1 { font: 40px/1 "Pacifico", cursive; color: var(--ink); margin: 0 0 8px; }
+    p { max-width: 640px; color: #666; }
+    code { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 3px; }
+    .grid {
+      display: flex; flex-wrap: wrap; gap: 24px; margin-top: 24px;
+    }
+    .card {
+      background: #fff; border: 1px solid #dcdcdc; border-radius: 8px;
+      padding: 16px; text-align: center;
+    }
+    .card canvas {
+      image-rendering: auto; background:
+        conic-gradient(#eee 90deg, #fff 90deg 180deg, #eee 180deg 270deg, #fff 270deg)
+        0 0 / 16px 16px;
+      border-radius: 6px; max-width: 160px; height: auto;
+    }
+    .card .name { margin: 10px 0 6px; font-weight: 600; }
+    .card a {
+      display: inline-block; padding: 6px 12px; background: var(--teal);
+      color: #fff; border-radius: 4px; text-decoration: none;
+    }
+    .card a:hover { background: #54a88b; }
+  </style>
+</head>
+<body>
+  <h1>tubalr</h1>
+  <p>
+    Click <strong>Download</strong> under each tile and save it into
+    <code>../icons/</code> using the exact filename shown, then commit the files.
+    The app itself never loads this page.
+  </p>
+
+  <div id="grid" class="grid"></div>
+
+  <script>
+    // Each icon: output filename, pixel size, and style.
+    //   bleed:  "square"  -> fill the whole canvas (maskable / apple / favicon;
+    //                        iOS & Android masks add their own rounding)
+    //           "squircle"-> rounded-square badge on transparency ("any" icons)
+    //   scale:  glyph height as a fraction of the canvas (maskable keeps the
+    //           logo inside the mask safe zone at ~0.6)
+    // Dark panel background (evokes the playlist) with a glowing green "t".
+    var BG_TOP = "#262626";  // Charcoal
+    var BG_BOTTOM = "#111111";
+    var GLOW = "#3ddc84";   // Neon green halo
+    var CORE = "#b8ffd8";   // pale-green core on top
+    var BORDER = "#ffffff"; // white border around the "any" (squircle) icons
+    var ICONS = [
+      { file: "icon-192.png",        size: 192, bleed: "squircle", scale: 0.66 },
+      { file: "icon-512.png",        size: 512, bleed: "squircle", scale: 0.66 },
+      { file: "maskable-192.png",    size: 192, bleed: "square",   scale: 0.56 },
+      { file: "maskable-512.png",    size: 512, bleed: "square",   scale: 0.56 },
+      { file: "apple-touch-icon.png",size: 180, bleed: "square",   scale: 0.66 },
+      { file: "favicon-32.png",      size: 32,  bleed: "square",   scale: 0.72 },
+    ];
+
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
+
+    // The icon silhouette (rounded badge for "any" icons, full square otherwise),
+    // optionally inset by `inset` px (used to draw the tile inside a border).
+    function iconPath(ctx, s, spec, inset) {
+      inset = inset || 0;
+      if (spec.bleed === "squircle") {
+        var pad = Math.round(s * 0.06) + inset;
+        var inner = s - pad * 2;
+        roundRect(ctx, pad, pad, inner, inner, Math.round(inner * 0.24));
+      } else {
+        var side = s - inset * 2;
+        ctx.beginPath();
+        ctx.rect(inset, inset, side, side);
+      }
+    }
+
+    // Beveled edge: light along the top rim, dark along the bottom, so the badge
+    // reads as a raised surface (adds dimension, esp. on a dark background).
+    function drawRim(ctx, s, spec, inset) {
+      ctx.save();
+      iconPath(ctx, s, spec, inset);
+      ctx.clip();
+      iconPath(ctx, s, spec, inset);
+      ctx.lineWidth = Math.max(2, Math.round(s * 0.02));
+      var g = ctx.createLinearGradient(0, 0, 0, s);
+      g.addColorStop(0, "rgba(255, 255, 255, 0.24)");
+      g.addColorStop(0.45, "rgba(255, 255, 255, 0.03)");
+      g.addColorStop(0.75, "rgba(0, 0, 0, 0.14)");
+      g.addColorStop(1, "rgba(0, 0, 0, 0.30)");
+      ctx.strokeStyle = g;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Classic iOS "glass" gloss: a bright highlight over the top half whose lower
+    // edge curves down through the middle, clipped to the icon shape.
+    function drawGloss(ctx, s, spec, inset) {
+      ctx.save();
+      iconPath(ctx, s, spec, inset);
+      ctx.clip();
+
+      var bottom = s * 0.5;
+      var dip = s * 0.14;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(s, 0);
+      ctx.lineTo(s, bottom);
+      ctx.quadraticCurveTo(s / 2, bottom + dip, 0, bottom);
+      ctx.closePath();
+
+      var g = ctx.createLinearGradient(0, 0, 0, bottom + dip);
+      g.addColorStop(0, "rgba(255, 255, 255, 0.16)");
+      g.addColorStop(0.7, "rgba(255, 255, 255, 0.04)");
+      g.addColorStop(1, "rgba(255, 255, 255, 0.01)");
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function draw(canvas, spec) {
+      var s = spec.size;
+      canvas.width = s;
+      canvas.height = s;
+      var ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, s, s);
+
+      // White border on the "any" (squircle) icons only; full-bleed square icons
+      // (maskable/apple/favicon) stay borderless so OS masking/rounding is clean.
+      var bw = (spec.bleed === "squircle") ? Math.round(s * 0.03) : 0;
+      if (bw > 0) {
+        ctx.fillStyle = BORDER;
+        iconPath(ctx, s, spec, 0);
+        ctx.fill();
+      }
+
+      // Dark tile, inset by the border width.
+      var grad = ctx.createLinearGradient(0, bw, 0, s - bw);
+      grad.addColorStop(0, BG_TOP);
+      grad.addColorStop(1, BG_BOTTOM);
+      ctx.fillStyle = grad;
+      iconPath(ctx, s, spec, bw);
+      ctx.fill();
+
+      // Glowing green Pacifico "t", centered by its ACTUAL glyph bounding box
+      // (Pacifico's "t" isn't symmetric, so measure rather than guess a baseline).
+      ctx.font = Math.round(s * spec.scale) + 'px "Pacifico", cursive';
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+      var m = ctx.measureText("t");
+      var penX = s / 2 - (m.actualBoundingBoxRight - m.actualBoundingBoxLeft) / 2;
+      var penY = s / 2 - (m.actualBoundingBoxDescent - m.actualBoundingBoxAscent) / 2;
+
+      // Layered glow for depth: a wide soft halo, then a tighter bright glow,
+      // then a crisp core on top.
+      ctx.shadowColor = GLOW;
+      ctx.fillStyle = GLOW;
+      ctx.shadowBlur = Math.round(s * 0.24); // wide halo
+      ctx.fillText("t", penX, penY);
+      ctx.shadowBlur = Math.round(s * 0.11); // tight glow
+      ctx.fillText("t", penX, penY);
+      ctx.fillText("t", penX, penY);
+      ctx.shadowBlur = 0;                    // crisp core
+      ctx.fillStyle = CORE;
+      ctx.fillText("t", penX, penY);
+
+      // Glassy sheen, then the beveled rim on top (both clipped to the tile).
+      drawGloss(ctx, s, spec, bw);
+      drawRim(ctx, s, spec, bw);
+    }
+
+    function build() {
+      var grid = document.getElementById("grid");
+      ICONS.forEach(function (spec) {
+        var card = document.createElement("div");
+        card.className = "card";
+
+        var canvas = document.createElement("canvas");
+        draw(canvas, spec);
+
+        var name = document.createElement("div");
+        name.className = "name";
+        name.textContent = spec.file + " (" + spec.size + "px)";
+
+        var link = document.createElement("a");
+        link.textContent = "Download";
+        link.href = canvas.toDataURL("image/png");
+        link.download = spec.file;
+
+        card.appendChild(canvas);
+        card.appendChild(name);
+        card.appendChild(link);
+        grid.appendChild(card);
+      });
+    }
+
+    // Wait for Pacifico so the glyph renders in the brand font, not a fallback.
+    if (document.fonts && document.fonts.load) {
+      document.fonts.load('64px "Pacifico"').then(function () {
+        return document.fonts.ready;
+      }).then(build).catch(build);
+    } else {
+      window.addEventListener("load", build);
+    }
+  </script>
+</body>
+</html>

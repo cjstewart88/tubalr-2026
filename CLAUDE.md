@@ -34,8 +34,13 @@ Load order and responsibilities:
 5. `js/player.js` — `Tubalr.player`: the transport/queue state machine (play order,
    lazy video resolution, auto-advance, shuffle, play/pause). Talks to `youtube` for
    playback, reports state to the UI via `init({ onChange, onStatus })`.
-6. `js/ui.js` — `Tubalr.ui`: DOM rendering + event wiring.
-7. `js/app.js` — bootstrap: config check + missing-key banner, loads the IFrame API.
+6. `js/ui.js` — `Tubalr.ui`: DOM rendering + event wiring; also drives the mobile
+   error toast and the Media Session (lock-screen) metadata + action handlers.
+7. `js/app.js` — bootstrap: config check + missing-key banner, loads the IFrame API,
+   registers the service worker (only over http/https).
+
+Non-script static files: `manifest.webmanifest`, `sw.js`, `icons/` (the PWA), and
+`tools/icon-generator.html` (a standalone icon exporter, never loaded by the app).
 
 Data flow: `ui` → `playlist` (Last.fm) → `player.start(queue)` → `player` lazily calls
 `youtube.searchVideoId` per track → `youtube` IFrame plays; `ENDED`/error auto-advance.
@@ -55,6 +60,21 @@ Data flow: `ui` → `playlist` (Last.fm) → `player.start(queue)` → `player` 
 - Last.fm returns HTTP 200 with an `error` field on failure, and track/artist lists are
   "sometimes array, sometimes single object, sometimes missing" — `lastfm.js` normalizes
   both; keep that.
+- **PWA is additive and subpath-relative.** `manifest.webmanifest`, `sw.js`, and `icons/`
+  make the app installable; every URL is **relative** because Pages serves from the
+  `/tubalr-2026/` subpath (never use root-absolute paths). The service worker only
+  precaches the app shell — never API/playback traffic (quota/freshness) — and registers
+  only over http/https (no-op on `file://`). Its cache name is `tubalr-v1` in the repo and
+  gets stamped with the commit SHA at deploy time so returning visitors get fresh files;
+  during local dev the SW serves stale assets, so bypass it in DevTools. Regenerate the
+  icon PNGs with `tools/icon-generator.html` and commit them (the app itself stays
+  dependency-free).
+- **Desktop and mobile share one DOM.** The phone layout — an app-like shell (full-bleed
+  player, scrolling playlist, transport pinned at the playlist bottom, a permanent
+  icon + search header) — is driven entirely by a `@media (max-width: 600px)` block plus
+  `:has()`-based visibility. Don't fork the markup; desktop must stay unchanged.
+- The accent color (`--accent`, green) and logo ink (`--ink`, near-black) are derived from
+  the app icon; keep the CSS palette and the icon in sync if either changes.
 
 ## Deploy
 

@@ -5,8 +5,8 @@
 :root {
   --bg: #efefef;
   --text: #666;
-  --ink: #464646;      /* logo / headings */
-  --teal: #60b99a;     /* the classic accent */
+  --ink: #141414;      /* logo / headings — near-black to echo the icon tile */
+  --accent: #2fbf6b;   /* green accent, drawn from the app icon's glowing "t" */
   --orange: #f77825;   /* secondary accent */
   --field-border: #cecfd1;
   --field-focus: #999;
@@ -54,11 +54,15 @@ a { color: inherit; text-decoration: none; }
 
 .brand a {
   color: var(--ink);
-  text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.6);
+  /* Letterpress emboss: crisp white highlight below the letters + a short dark
+     shadow, so the wordmark reads as raised on the light background. */
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.95),
+               0 2px 1px rgba(0, 0, 0, 0.22),
+               0 3px 4px rgba(0, 0, 0, 0.16);
   transition: color 0.4s ease;
 }
 
-.brand a:hover { color: var(--teal); }
+.brand a:hover { color: var(--accent); }
 
 /* ---------- Search ---------- */
 .search {
@@ -85,7 +89,7 @@ a { color: inherit; text-decoration: none; }
 
 .search-input:focus {
   border-color: var(--field-focus);
-  box-shadow: 0 0 0 3px rgba(96, 185, 154, 0.18);
+  box-shadow: 0 0 0 3px rgba(47, 191, 107, 0.18);
 }
 
 .modes { display: inline-flex; gap: 6px; }
@@ -104,8 +108,8 @@ a { color: inherit; text-decoration: none; }
 }
 
 .btn:hover {
-  color: var(--teal);
-  border-color: var(--teal);
+  color: var(--accent);
+  border-color: var(--accent);
   background: linear-gradient(#fff, #f4f4f4);
 }
 
@@ -129,6 +133,33 @@ a { color: inherit; text-decoration: none; }
 
 .status.error { color: #bd5e55; }
 
+/* Don't reserve the status line's height/margin when it has no message. */
+.status:empty { min-height: 0; margin-top: 0; }
+
+/* Toast — surfaces errors on mobile (desktop uses the inline status line above).
+   Hidden by default; the mobile breakpoint shows it. Fades + slides on .show. */
+.toast {
+  display: none;
+  position: fixed;
+  left: 50%;
+  bottom: calc(72px + env(safe-area-inset-bottom));
+  transform: translate(-50%, 8px);
+  max-width: min(90vw, 420px);
+  padding: 12px 16px;
+  background: rgba(24, 24, 24, 0.96);
+  color: #f5f5f5;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  z-index: 1000;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
 /* ---------- Now playing (player + transport) ---------- */
 .now-playing { margin-top: 26px; }
 
@@ -149,12 +180,18 @@ a { color: inherit; text-decoration: none; }
   display: block;
 }
 
+/* The transport now sits at the bottom of the (dark) playlist panel on every
+   viewport, so it's a dark footer bar with light glyphs. */
 .transport {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  margin-top: 16px;
+  flex: 0 0 auto;
+  gap: 8px;
+  margin: 0;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.28);
+  border-top: 1px solid #2a2a2a;
 }
 
 .ctrl {
@@ -171,10 +208,25 @@ a { color: inherit; text-decoration: none; }
   transition: color 0.15s, background 0.15s;
 }
 
-.ctrl:hover { color: var(--teal); background: rgba(96, 185, 154, 0.12); }
-.ctrl.active { color: var(--teal); }
+.ctrl:hover { color: var(--accent); background: rgba(47, 191, 107, 0.12); }
+.ctrl.active { color: var(--accent); }
 .ctrl:disabled { color: #ccc; background: transparent; cursor: default; }
 .ctrl-play { width: 48px; height: 48px; color: var(--ink); }
+
+/* Transport glyphs read light against the dark panel. */
+.transport .ctrl { color: #b9b9b9; }
+.transport .ctrl:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
+.transport .ctrl.active { color: var(--accent); }
+.transport .ctrl:disabled { color: #5a5a5a; background: transparent; }
+.transport .ctrl-play { color: #fff; }
+
+/* The app icon in the header is mobile-only; desktop keeps the wordmark. The
+   rounded clip + soft shadow lift it off the light header so its edge reads. */
+.brand-icon {
+  display: none;
+  border-radius: 22%;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
+}
 
 /* ---------- Playlist panel (right, dark) ---------- */
 .playlist-col {
@@ -185,7 +237,7 @@ a { color: inherit; text-decoration: none; }
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0.9));
+  background: linear-gradient(#1a1a1a, #0d0d0d);
   border-left: 1px solid #2a2a2a;
   box-shadow: -3px 0 12px rgba(0, 0, 0, 0.3);
   z-index: 900;
@@ -193,6 +245,7 @@ a { color: inherit; text-decoration: none; }
 
 .playlist {
   flex: 1;
+  min-height: 0; /* let the list scroll inside the flex column above the transport */
   margin: 0;
   padding: 0;
   list-style: none;
@@ -219,9 +272,9 @@ a { color: inherit; text-decoration: none; }
      fades along X only and fills the full row height, so nothing bleeds from
      the top, bottom, or right edges. */
   background:
-    linear-gradient(to right, rgba(96, 185, 154, 0.55), rgba(96, 185, 154, 0) 16px),
+    linear-gradient(to right, rgba(47, 191, 107, 0.55), rgba(47, 191, 107, 0) 16px),
     rgba(255, 255, 255, 0.05);
-  box-shadow: inset 3px 0 0 var(--teal);
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .playlist li.pending { color: #8f8f8f; }
@@ -262,4 +315,94 @@ body:has(#playlist li) .playlist-col { display: flex; }
   }
 
   body:has(#playlist li) .stage { padding-bottom: 32px; }
+}
+
+/* ---------- Phone: an app-like layout (≤600px) ----------
+   Purely additive and phone-only — nothing here touches the desktop rules
+   above, so anything wider than 600px renders exactly as before. When a session
+   is active (body:has(#playlist li)) the page becomes a fixed app shell: a
+   compact header + full-bleed player up top, the playlist scrolling in the
+   middle, and a transport bar pinned to the bottom (with safe-area padding). */
+@media (max-width: 600px) {
+  /* Comfortable touch targets. 16px inputs also stop iOS from zooming on focus. */
+  .btn { min-height: 44px; }
+  .search-input { min-height: 44px; font-size: 16px; }
+  .ctrl { width: 48px; height: 48px; }
+  .ctrl-play { width: 58px; height: 58px; }
+
+  /* Keep the mode buttons on the same row as the input instead of wrapping to a
+     second line: let the input shrink freely and hold everything on one line. */
+  .search { flex-wrap: nowrap; gap: 6px; }
+  .search-input { flex: 1 1 auto; min-width: 0; max-width: none; }
+
+  /* Hide the inline status on mobile (its loading chatter flashes); real errors
+     surface via the toast instead. */
+  .status { display: none; }
+  .toast { display: block; }
+
+  /* ---- Active session: fixed app shell ---- */
+  body:has(#playlist li) {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;   /* fallback */
+    height: 100dvh;  /* accounts for mobile browser chrome */
+    overflow: hidden;
+  }
+
+  /* Header region: a compact bar with the logo on the left and a search icon on
+     the right. Real left/right gutters (env() is 0 on non-notched devices, so
+     max() guarantees a minimum). The search form is collapsed until tapped. */
+  body:has(#playlist li) .stage {
+    position: relative; /* anchor the absolutely-placed search toggle */
+    flex: 0 0 auto;
+    width: 100%;
+    padding: 10px max(16px, env(safe-area-inset-right))
+             0 max(16px, env(safe-area-inset-left));
+    text-align: left;
+  }
+  /* App icon anchored top-left (absolute, so the in-flow search row sets the
+     header height); the wordmark is swapped for it while a session is playing. */
+  body:has(#playlist li) .brand {
+    position: absolute;
+    top: 10px;
+    left: max(16px, env(safe-area-inset-left));
+    height: 48px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+  }
+  body:has(#playlist li) .brand-word { display: none; }
+  body:has(#playlist li) .brand-icon { display: block; width: 44px; height: 44px; }
+
+  /* Search bar is always present beside the icon, filling the row. */
+  body:has(#playlist li) .search {
+    min-height: 48px;
+    padding-left: 52px; /* clear the icon (44 + gap) */
+  }
+
+  body:has(#playlist li) .now-playing { margin-top: 12px; }
+
+  /* Full-bleed 16:9 player breaking out of the centered stage. */
+  body:has(#playlist li) .player-frame {
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  /* Playlist becomes the scrolling middle surface, filling the leftover space;
+     the transport sits at its bottom (bottom of the screen) as a normal flex
+     item — no fixed positioning needed in the app shell. */
+  body:has(#playlist li) .playlist-col {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+  }
+  body:has(#playlist li) .transport {
+    gap: 6px;
+    padding: 8px max(8px, env(safe-area-inset-right))
+             max(8px, env(safe-area-inset-bottom))
+             max(8px, env(safe-area-inset-left));
+  }
 }

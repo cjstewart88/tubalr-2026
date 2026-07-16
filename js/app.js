@@ -34,6 +34,18 @@ window.Tubalr = window.Tubalr || {};
     document.head.appendChild(tag);
   }
 
+  // Register the service worker so the app is installable and the shell loads
+  // offline. Gated to secure contexts: service workers require http/https, so
+  // this is a no-op when the page is opened directly via file://.
+  function registerServiceWorker() {
+    if (!("serviceWorker" in navigator)) return;
+    if (location.protocol !== "http:" && location.protocol !== "https:") return;
+    // Relative path -> scopes to the app's directory (works under a subpath).
+    navigator.serviceWorker.register("sw.js").catch(function () {
+      /* non-fatal: the app still works without offline/install support */
+    });
+  }
+
   function init() {
     Tubalr.ui.init();
     if (keysMissing()) {
@@ -41,6 +53,7 @@ window.Tubalr = window.Tubalr || {};
       Tubalr.ui.setStatus("Add your API keys in js/config.js to get started.", true);
     }
     loadYouTubeApi();
+    registerServiceWorker();
   }
 
   if (document.readyState === "loading") {

@@ -46,9 +46,34 @@ window.Tubalr = window.Tubalr || {};
     REPEAT_LOOP +
     '<polygon fill="currentColor" stroke="none" points="12.9,9.3 12.9,14.9 11.5,14.9 11.5,11 10.4,11 10.4,10 11.6,9.3"/>';
 
+  // Error toast (shown on mobile via CSS; harmlessly hidden on desktop). Created
+  // lazily and auto-dismissed; re-triggering restarts the timer.
+  var toastEl = null;
+  var toastTimer = null;
+
+  function showToast(msg) {
+    if (!toastEl) {
+      toastEl = document.createElement("div");
+      toastEl.className = "toast";
+      toastEl.setAttribute("role", "status");
+      toastEl.setAttribute("aria-live", "polite");
+      document.body.appendChild(toastEl);
+    }
+    toastEl.textContent = msg;
+    void toastEl.offsetWidth; // reflow so the transition replays if already shown
+    toastEl.classList.add("show");
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () {
+      toastEl.classList.remove("show");
+    }, 4500);
+  }
+
   function setStatus(msg, isError) {
     els.status.textContent = msg || "";
     els.status.classList.toggle("error", !!isError);
+    // Only real errors toast — the transient loading messages are skipped so the
+    // mobile view stays quiet during normal playback.
+    if (isError && msg) showToast(msg);
   }
 
   function renderPlaylist(queue) {
@@ -90,11 +115,56 @@ window.Tubalr = window.Tubalr || {};
     els.repeat.setAttribute("title", label);
   }
 
+  // ---- Media Session: lock-screen / hardware media controls (mobile) ----
+  // Feature-detected; a no-op on browsers without support (incl. most desktop).
+
+  function mediaSessionSupported() {
+    return "mediaSession" in navigator;
+  }
+
+  function wireMediaSession() {
+    if (!mediaSessionSupported()) return;
+    var ms = navigator.mediaSession;
+    // Route the OS transport buttons back into the player state machine.
+    var handlers = {
+      play: player.togglePlay,
+      pause: player.togglePlay,
+      previoustrack: player.prev,
+      nexttrack: player.next,
+    };
+    Object.keys(handlers).forEach(function (action) {
+      try {
+        ms.setActionHandler(action, handlers[action]);
+      } catch (e) {
+        /* unsupported action on this browser — ignore */
+      }
+    });
+  }
+
+  function updateMediaSession(state) {
+    if (!mediaSessionSupported()) return;
+    var ms = navigator.mediaSession;
+    var track = state.queue[state.currentIndex];
+    if (track && window.MediaMetadata) {
+      ms.metadata = new window.MediaMetadata({
+        title: track.title,
+        artist: track.artist,
+        album: "Tubalr",
+        artwork: [
+          { src: "icons/icon-512.png", sizes: "512x512", type: "image/png" },
+        ],
+      });
+    }
+    // playbackState drives the lock-screen play/pause glyph.
+    ms.playbackState = state.playing ? "playing" : "paused";
+  }
+
   // player -> UI
   function onChange(state) {
     highlightCurrent(state.currentIndex);
     reflectPlaying(state.playing);
     reflectRepeat(state.repeatMode);
+    updateMediaSession(state);
   }
 
   function setBuilding(on) {
@@ -107,6 +177,8 @@ window.Tubalr = window.Tubalr || {};
   function build(mode) {
     var artist = els.input.value.trim();
     if (!artist || building) return;
+    // Dismiss the mobile keyboard once a search starts.
+    els.input.blur();
     setBuilding(true);
     setStatus("Loading " + (mode === "similar" ? "artists similar to " : "top tracks for ") + "“" + artist + "”…");
 
@@ -163,6 +235,7 @@ window.Tubalr = window.Tubalr || {};
   function init() {
     cacheEls();
     wire();
+    wireMediaSession();
     player.init({ onChange: onChange, onStatus: setStatus });
   }
 
