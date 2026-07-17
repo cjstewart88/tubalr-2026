@@ -23,7 +23,6 @@ window.Tubalr = window.Tubalr || {};
       document.querySelectorAll(".btn-mode")
     );
     els.list = $("playlist");
-    els.status = $("status");
     els.shuffle = $("btn-shuffle");
     els.prev = $("btn-prev");
     els.play = $("btn-play");
@@ -46,8 +45,8 @@ window.Tubalr = window.Tubalr || {};
     REPEAT_LOOP +
     '<polygon fill="currentColor" stroke="none" points="12.9,9.3 12.9,14.9 11.5,14.9 11.5,11 10.4,11 10.4,10 11.6,9.3"/>';
 
-  // Error toast (shown on mobile via CSS; harmlessly hidden on desktop). Created
-  // lazily and auto-dismissed; re-triggering restarts the timer.
+  // Error toast — the only status surface on every viewport. Created lazily and
+  // auto-dismissed; re-triggering restarts the timer.
   var toastEl = null;
   var toastTimer = null;
 
@@ -68,11 +67,9 @@ window.Tubalr = window.Tubalr || {};
     }, 4500);
   }
 
+  // Only real errors surface — the transient loading messages are dropped so the
+  // view stays quiet during normal playback.
   function setStatus(msg, isError) {
-    els.status.textContent = msg || "";
-    els.status.classList.toggle("error", !!isError);
-    // Only real errors toast — the transient loading messages are skipped so the
-    // mobile view stays quiet during normal playback.
     if (isError && msg) showToast(msg);
   }
 

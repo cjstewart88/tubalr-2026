@@ -5,16 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>tubalr</title>
 
-  <!-- PWA: installable + add-to-home-screen. All hrefs are relative so they
-       resolve under the GitHub Pages subpath (/tubalr-2026/). -->
-  <meta name="theme-color" content="#efefef" />
-  <link rel="manifest" href="manifest.webmanifest" />
+  <!-- Tints the browser chrome to match the header. Not PWA machinery — plain
+       pages get this too. The href is relative so it resolves under the GitHub
+       Pages subpath (/tubalr-2026/). -->
+  <meta name="theme-color" content="#1a1723" />
   <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
-  <!-- iOS home-screen (Safari uses these, not the manifest, for the app icon). -->
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="Tubalr" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
 
   <!-- Pacifico is the one signature the original leaned on; everything else is plain CSS. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -46,8 +41,6 @@
       similar weaves in tracks from related artists — one continuous
       YouTube session, minus the clutter.
     </p>
-
-    <div id="status" class="status" role="status" aria-live="polite"></div>
 
     <section class="now-playing">
       <div class="player-frame">

@@ -42,13 +42,6 @@ jobs:
           };
           EOF
 
-      # Stamp a unique service-worker cache name per deploy (the short commit
-      # SHA) so returning visitors always pick up changed shell files without a
-      # manual version bump. sw.js keeps "tubalr-v1" in the repo so local /
-      # file:// use still works.
-      - name: Version the service worker
-        run: sed -i "s/tubalr-v1/tubalr-${GITHUB_SHA::7}/" sw.js
-
       - uses: actions/configure-pages@v5
 
       - name: Upload site artifact

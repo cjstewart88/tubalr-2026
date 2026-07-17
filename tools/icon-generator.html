@@ -6,7 +6,7 @@
   <title>Tubalr — icon generator</title>
 
   <!-- One-time tool: NOT part of the app and never referenced by index.html.
-       Renders the PWA icon set from the current branding (teal squircle + white
+       Renders the icon set from the current branding (dark squircle + glowing
        Pacifico "t"), then offers PNG downloads. Save the files into ../icons/
        and commit them, so the shipped app stays free of any build/tooling. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -58,23 +58,28 @@
 
   <script>
     // Each icon: output filename, pixel size, and style.
-    //   bleed:  "square"  -> fill the whole canvas (maskable / apple / favicon;
-    //                        iOS & Android masks add their own rounding)
-    //           "squircle"-> rounded-square badge on transparency ("any" icons)
-    //   scale:  glyph height as a fraction of the canvas (maskable keeps the
-    //           logo inside the mask safe zone at ~0.6)
-    // Dark panel background (evokes the playlist) with a glowing green "t".
-    var BG_TOP = "#262626";  // Charcoal
-    var BG_BOTTOM = "#111111";
-    var GLOW = "#3ddc84";   // Neon green halo
-    var CORE = "#b8ffd8";   // pale-green core on top
-    var BORDER = "#ffffff"; // white border around the "any" (squircle) icons
+    //   bleed:  "square"  -> fill the whole canvas (favicon: too small to spare
+    //                        pixels for a margin)
+    //           "squircle"-> rounded-square badge on transparency
+    //   scale:  glyph height as a fraction of the canvas
+    // Only three icons survive: the app dropped its PWA manifest, so the
+    // maskable and apple-touch sizes have nothing left to serve. icon-192 is the
+    // mobile header logo, icon-512 the Media Session (lock-screen) artwork, and
+    // favicon-32 the tab icon.
+    // Dark panel background (evokes the playlist) with a glowing purple "t".
+    // These are the source of the app's accent — keep them in step with
+    // --accent / the violet-tinted surfaces in css/styles.css.
+    var BG_TOP = "#262233";  // Charcoal, tinted violet
+    var BG_BOTTOM = "#100e17";
+    var GLOW = "#a970ff";   // Neon violet halo
+    var CORE = "#e6d6ff";   // pale-lavender core on top
+    // Rim around the squircle icons: a lavender-white rather than pure white, so
+    // the tile's edge still separates from a dark background without reading as
+    // a neutral sticker on a violet icon.
+    var BORDER = "#e8e2f5";
     var ICONS = [
       { file: "icon-192.png",        size: 192, bleed: "squircle", scale: 0.66 },
       { file: "icon-512.png",        size: 512, bleed: "squircle", scale: 0.66 },
-      { file: "maskable-192.png",    size: 192, bleed: "square",   scale: 0.56 },
-      { file: "maskable-512.png",    size: 512, bleed: "square",   scale: 0.56 },
-      { file: "apple-touch-icon.png",size: 180, bleed: "square",   scale: 0.66 },
       { file: "favicon-32.png",      size: 32,  bleed: "square",   scale: 0.72 },
     ];
 
@@ -153,8 +158,8 @@
       var ctx = canvas.getContext("2d");
       ctx.clearRect(0, 0, s, s);
 
-      // White border on the "any" (squircle) icons only; full-bleed square icons
-      // (maskable/apple/favicon) stay borderless so OS masking/rounding is clean.
+      // Rim on the squircle icons only; the full-bleed favicon stays borderless
+      // (at 32px a rim would eat the glyph).
       var bw = (spec.bleed === "squircle") ? Math.round(s * 0.03) : 0;
       if (bw > 0) {
         ctx.fillStyle = BORDER;
@@ -170,7 +175,7 @@
       iconPath(ctx, s, spec, bw);
       ctx.fill();
 
-      // Glowing green Pacifico "t", centered by its ACTUAL glyph bounding box
+      // Glowing purple Pacifico "t", centered by its ACTUAL glyph bounding box
       // (Pacifico's "t" isn't symmetric, so measure rather than guess a baseline).
       ctx.font = Math.round(s * spec.scale) + 'px "Pacifico", cursive';
       ctx.textAlign = "left";

@@ -1,18 +1,44 @@
-/* Tubalr — a modern take on the original look: Pacifico logo, the #efefef / teal
-   / #666 palette, a centered search, and a dark playlist panel on the right.
+/* Tubalr — a modern take on the original look: Pacifico logo, a centered search,
+   and a dark playlist panel on the right. Permanently dark: the page is built
+   around the app icon's near-black tile + purple glow, and there is no light
+   theme to fall back to (no prefers-color-scheme branch — see color-scheme).
    Vanilla CSS only; visibility is driven by :has() rather than JS toggles. */
 
 :root {
-  --bg: #efefef;
-  --text: #666;
-  --ink: #141414;      /* logo / headings — near-black to echo the icon tile */
-  --accent: #2fbf6b;   /* green accent, drawn from the app icon's glowing "t" */
-  --orange: #f77825;   /* secondary accent */
-  --field-border: #cecfd1;
-  --field-focus: #999;
+  /* Dark surfaces, lightest on top: --bg is the page, --surface the raised
+     header/panel, --field-bg the inputs and buttons sitting on top of those.
+     All of them carry a slight violet cast rather than being neutral grey, so
+     the purple accent reads as part of the room's light, not a sticker on it. */
+  --bg: #131019;       /* page — near-black, tinted deep space */
+  --surface: #1a1723;  /* raised bars: mobile header, playlist panel top */
+  --field-bg: #262233;
+  --border: #2a2636;   /* hairlines between dark surfaces */
+  --text: #b0acbb;
+  --text-strong: #e8e6ef;
+  --ink: #f0eef5;      /* logo / headings — near-white against the dark page */
+  --accent: #a06bff;   /* galaxy purple, drawn from the app icon's glowing "t" */
+  /* Same colour as channels, for rgba() glows/washes that need an alpha. Keep
+     the two in sync — every translucent accent derives from this. */
+  --accent-rgb: 160, 107, 255;
+  --field-border: #3a3547;
 
   --panel-w: 264px;
   --font: "Lucida Grande", "Segoe UI", Tahoma, Verdana, Arial, sans-serif;
+  /* The playlist editor's font. Winamp drew its list in a tiny bitmap face; a
+     system mono stack is the closest we get without shipping a font file. */
+  --font-mono: "Lucida Console", Consolas, "DejaVu Sans Mono", monospace;
+
+  /* Chiselled 3D edges — the Winamp tell. Light catches the top-left, shadow
+     pools bottom-right; swap them (see .btn:active) and the control reads as
+     pressed in. Applied as inset box-shadows so they sit inside the border. */
+  --bevel-hi: rgba(255, 255, 255, 0.13);
+  --bevel-lo: rgba(0, 0, 0, 0.65);
+  --bevel-out: inset 1px 1px 0 var(--bevel-hi), inset -1px -1px 0 var(--bevel-lo);
+  --bevel-in: inset -1px -1px 0 var(--bevel-hi), inset 1px 1px 0 var(--bevel-lo);
+
+  /* Tells the UA to render form controls, scrollbars and the like dark, so the
+     playlist's scrollbar and the input's caret/selection match the theme. */
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -22,7 +48,12 @@ html, body { height: 100%; }
 body {
   margin: 0;
   min-height: 100%;
-  background: var(--bg);
+  /* A wide nebula wash bleeding down from the top behind the logo, over the flat
+     page colour. Fixed so it stays put rather than scrolling with the playlist. */
+  background:
+    radial-gradient(1100px 520px at 50% -12%, rgba(var(--accent-rgb), 0.16), transparent 70%),
+    var(--bg);
+  background-attachment: fixed;
   color: var(--text);
   font: 13px/1.5 var(--font);
   -webkit-font-smoothing: antialiased;
@@ -30,7 +61,7 @@ body {
 }
 
 /* When the playlist docks on the right, reserve its width so the centered
-   .stage recenters within the remaining white space (fixed panel ignores this). */
+   .stage recenters within the remaining space (fixed panel ignores this). */
 @media (min-width: 861px) {
   body:has(#playlist li) { padding-right: var(--panel-w); }
 }
@@ -54,11 +85,11 @@ a { color: inherit; text-decoration: none; }
 
 .brand a {
   color: var(--ink);
-  /* Letterpress emboss: crisp white highlight below the letters + a short dark
-     shadow, so the wordmark reads as raised on the light background. */
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.95),
-               0 2px 1px rgba(0, 0, 0, 0.22),
-               0 3px 4px rgba(0, 0, 0, 0.16);
+  /* Emboss, inverted for the dark page: a hard black drop under the letters
+     instead of the old white highlight, plus a faint bloom echoing the icon's
+     glowing "t". A light highlight here would just look like fringing. */
+  text-shadow: 0 2px 2px rgba(0, 0, 0, 0.8),
+               0 0 24px rgba(var(--accent-rgb), 0.16);
   transition: color 0.4s ease;
 }
 
@@ -78,18 +109,26 @@ a { color: inherit; text-decoration: none; }
   max-width: 320px;
   height: 34px;
   padding: 0 12px;
-  color: var(--text);
+  color: var(--text-strong);
   font: 13px var(--font);
-  background: #fff;
+  background: var(--field-bg);
   border: 1px solid var(--field-border);
-  border-radius: 4px;
+  border-radius: 2px;
+  box-shadow: var(--bevel-in); /* fields are sunken, buttons stand proud */
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
+.search-input::placeholder { color: #7a7a7a; }
+
+/* Focus reads as the icon's glow: the accent border plus a tight ring and a soft
+   bloom spilling past it — the same light the logo's "t" gives off. The sunken
+   bevel rides along so the field doesn't pop flat when you click into it. */
 .search-input:focus {
-  border-color: var(--field-focus);
-  box-shadow: 0 0 0 3px rgba(47, 191, 107, 0.18);
+  border-color: var(--accent);
+  box-shadow: var(--bevel-in),
+              0 0 0 3px rgba(var(--accent-rgb), 0.25),
+              0 0 18px 2px rgba(var(--accent-rgb), 0.4);
 }
 
 .modes { display: inline-flex; gap: 6px; }
@@ -100,9 +139,10 @@ a { color: inherit; text-decoration: none; }
   padding: 0 16px;
   color: var(--text);
   font: 13px var(--font);
-  background: linear-gradient(#f7f7f7, #f0f0f0);
+  background: linear-gradient(#2c2839, #232030);
   border: 1px solid var(--field-border);
-  border-radius: 4px;
+  border-radius: 2px; /* Winamp's chrome is square; just enough to soften */
+  box-shadow: var(--bevel-out);
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
@@ -110,10 +150,14 @@ a { color: inherit; text-decoration: none; }
 .btn:hover {
   color: var(--accent);
   border-color: var(--accent);
-  background: linear-gradient(#fff, #f4f4f4);
+  background: linear-gradient(#35304a, #2a2639);
 }
 
-.btn:active { background: linear-gradient(#eee, #f4f4f4); }
+/* Pressed: the bevel inverts and the gradient flips, so the face sinks. */
+.btn:active {
+  background: linear-gradient(#232030, #2c2839);
+  box-shadow: var(--bevel-in);
+}
 .btn:disabled { opacity: 0.55; cursor: default; color: var(--text); border-color: var(--field-border); }
 
 /* ---------- Hint (before first search) ---------- */
@@ -124,34 +168,25 @@ a { color: inherit; text-decoration: none; }
   line-height: 1.6;
 }
 
-/* ---------- Status line ---------- */
-.status {
-  min-height: 18px;
-  margin-top: 16px;
-  color: #8a8a8a;
-}
-
-.status.error { color: #bd5e55; }
-
-/* Don't reserve the status line's height/margin when it has no message. */
-.status:empty { min-height: 0; margin-top: 0; }
-
-/* Toast — surfaces errors on mobile (desktop uses the inline status line above).
-   Hidden by default; the mobile breakpoint shows it. Fades + slides on .show. */
+/* Toast — the only status surface; errors slide up from the bottom on .show and
+   auto-dismiss. Mobile lifts it clear of the pinned transport bar. */
 .toast {
-  display: none;
   position: fixed;
   left: 50%;
-  bottom: calc(72px + env(safe-area-inset-bottom));
+  bottom: 24px;
   transform: translate(-50%, 8px);
   max-width: min(90vw, 420px);
   padding: 12px 16px;
-  background: rgba(24, 24, 24, 0.96);
+  /* Lighter than the page (which is itself near-black) plus a rim, so the toast
+     reads as a raised card instead of dissolving into the background. */
+  background: rgba(45, 40, 60, 0.98);
+  border: 1px solid #453f57;
+  box-shadow: var(--bevel-out), 0 8px 24px rgba(0, 0, 0, 0.55);
   color: #f5f5f5;
   font-size: 13px;
   line-height: 1.4;
   text-align: center;
-  border-radius: 10px;
+  border-radius: 2px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   opacity: 0;
   pointer-events: none;
@@ -160,16 +195,30 @@ a { color: inherit; text-decoration: none; }
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
+/* The toast is fixed, so the body padding that recenters .stage beside the
+   docked playlist doesn't move it. Mirror that shift by hand (same breakpoint)
+   so the toast stays centered under the player rather than under the viewport. */
+@media (min-width: 861px) {
+  body:has(#playlist li) .toast {
+    left: calc(50% - var(--panel-w) / 2);
+    transition: opacity 0.25s ease, transform 0.25s ease, left 0.3s ease;
+  }
+}
+
 /* ---------- Now playing (player + transport) ---------- */
 .now-playing { margin-top: 26px; }
 
+/* The screen sits in a chassis: square corners, a hairline frame and a drop
+   shadow. The bevel goes on the border rather than inset, since the iframe
+   paints over anything inside the box. */
 .player-frame {
   width: 100%;
   aspect-ratio: 16 / 9;
   background: #000;
-  border-radius: 4px;
+  border: 1px solid var(--field-border);
+  border-radius: 2px;
   overflow: hidden;
-  box-shadow: 8px 6px 18px rgba(0, 0, 0, 0.35);
+  box-shadow: 8px 6px 18px rgba(0, 0, 0, 0.45);
 }
 
 #player,
@@ -191,41 +240,47 @@ a { color: inherit; text-decoration: none; }
   margin: 0;
   padding: 10px;
   background: rgba(0, 0, 0, 0.28);
-  border-top: 1px solid #2a2a2a;
+  border-top: 1px solid var(--border);
 }
 
+/* Square, bevelled chunks rather than flat circles — Winamp's button cluster.
+   Every .ctrl lives inside .transport, so these are the colours that apply. */
 .ctrl {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 40px;
   height: 40px;
-  color: #8a8a8a;
-  background: transparent;
-  border: none;
-  border-radius: 50%;
+  color: #b9b9b9;
+  background: linear-gradient(#2c2839, #232030);
+  border: 1px solid var(--field-border);
+  border-radius: 2px;
+  box-shadow: var(--bevel-out);
   cursor: pointer;
   transition: color 0.15s, background 0.15s;
 }
 
-.ctrl:hover { color: var(--accent); background: rgba(47, 191, 107, 0.12); }
+.ctrl:hover { color: #fff; background: linear-gradient(#35304a, #2a2639); }
 .ctrl.active { color: var(--accent); }
-.ctrl:disabled { color: #ccc; background: transparent; cursor: default; }
-.ctrl-play { width: 48px; height: 48px; color: var(--ink); }
+/* Held down: the chunk sinks and the glyph shifts with it. */
+.ctrl:active { box-shadow: var(--bevel-in); background: linear-gradient(#232030, #2c2839); }
+.ctrl:active svg { transform: translate(1px, 1px); }
 
-/* Transport glyphs read light against the dark panel. */
-.transport .ctrl { color: #b9b9b9; }
-.transport .ctrl:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
-.transport .ctrl.active { color: var(--accent); }
-.transport .ctrl:disabled { color: #5a5a5a; background: transparent; }
-.transport .ctrl-play { color: #fff; }
+.ctrl:disabled {
+  color: #5a5a5a;
+  background: linear-gradient(#282433, #211e2c);
+  box-shadow: var(--bevel-out);
+  cursor: default;
+}
 
-/* The app icon in the header is mobile-only; desktop keeps the wordmark. The
-   rounded clip + soft shadow lift it off the light header so its edge reads. */
+.ctrl-play { width: 48px; height: 48px; color: #fff; }
+
+/* The app icon in the header is mobile-only; desktop keeps the wordmark. No drop
+   shadow — that existed to lift the tile off a light header; on the dark one it
+   only muddies the tile's edge. */
 .brand-icon {
   display: none;
   border-radius: 22%;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
 }
 
 /* ---------- Playlist panel (right, dark) ---------- */
@@ -237,45 +292,54 @@ a { color: inherit; text-decoration: none; }
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(#1a1a1a, #0d0d0d);
-  border-left: 1px solid #2a2a2a;
+  background: linear-gradient(var(--surface), #0c0a11);
+  border-left: 1px solid var(--border);
   box-shadow: -3px 0 12px rgba(0, 0, 0, 0.3);
   z-index: 900;
 }
 
+/* The Winamp playlist editor: mono type, tight rows, every entry numbered. The
+   counter is CSS-side so the JS keeps writing plain "artist – title" rows. */
 .playlist {
   flex: 1;
   min-height: 0; /* let the list scroll inside the flex column above the transport */
   margin: 0;
-  padding: 0;
+  padding: 4px 0;
   list-style: none;
   overflow-y: auto;
+  counter-reset: track;
+  font: 12px/1.45 var(--font-mono);
 }
 
 .playlist li {
-  padding: 12px 18px;
+  counter-increment: track;
+  padding: 5px 10px;
   color: #cfcfcf;
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
-  border-bottom: 1px solid #2a2a2a;
-  text-shadow: 1px 1px #1a1a1a;
+  text-overflow: ellipsis; /* stays on the li: ::before is inline, not a flex item */
   transition: color 0.12s, background 0.12s;
+}
+
+/* "1. Artist – Title", dimmed like the editor's index column. */
+.playlist li::before {
+  content: counter(track) ". ";
+  color: #6f6a80;
 }
 
 .playlist li:hover { color: #fff; background: rgba(255, 255, 255, 0.05); }
 
-.playlist li.current {
-  color: #fff;
-  /* Solid left bar (inset border) + a purely horizontal glow: the gradient
-     fades along X only and fills the full row height, so nothing bleeds from
-     the top, bottom, or right edges. */
-  background:
-    linear-gradient(to right, rgba(47, 191, 107, 0.55), rgba(47, 191, 107, 0) 16px),
-    rgba(255, 255, 255, 0.05);
-  box-shadow: inset 3px 0 0 var(--accent);
+/* Winamp marked the playing track by inverting the whole row into a solid block
+   of the skin's highlight colour. Ours is the accent, with the page's near-black
+   as the ink — including the index, which would vanish at its dimmed grey. */
+.playlist li.current,
+.playlist li.current:hover {
+  color: #14101c;
+  background: var(--accent);
+  text-shadow: none;
 }
+.playlist li.current::before { color: rgba(20, 16, 28, 0.65); }
 
 .playlist li.pending { color: #8f8f8f; }
 
@@ -290,14 +354,14 @@ body:has(#playlist li) .playlist-col { display: flex; }
 /* ---------- Config-missing banner (inserted at top of <body>) ---------- */
 .config-banner {
   padding: 14px 20px;
-  background: #fff8e1;
-  border-bottom: 1px solid #f0e0a8;
-  color: #7a5c00;
+  background: #2b2205;
+  border-bottom: 1px solid #4d3d0c;
+  color: #e6c765;
   text-align: center;
 }
 
 .config-banner code {
-  background: rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.08);
   padding: 1px 5px;
   border-radius: 3px;
 }
@@ -310,11 +374,38 @@ body:has(#playlist li) .playlist-col { display: flex; }
     height: auto;
     max-height: 340px;
     border-left: none;
-    border-top: 1px solid #2a2a2a;
+    border-top: 1px solid var(--border);
     box-shadow: none;
   }
 
-  body:has(#playlist li) .stage { padding-bottom: 32px; }
+  /* Stacked, the stage and the panel share one column of viewport height. Give
+     that column an exact height and let the panel absorb whatever the stage
+     leaves — no gap under the transport, and no fixed cap to guess at. The
+     playlist still scrolls inside the panel. min-height keeps the panel usable
+     on a very short window: the column then outgrows the viewport and the page
+     scrolls, which beats clipping the transport. (The ≤600 app shell relaxes
+     that min-height back to 0 and takes over from here.) */
+  body:has(#playlist li) {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;   /* fallback */
+    height: 100dvh;
+  }
+
+  /* The hero padding exists to centre the landing page; once a session is
+     running the stage is just a header, so pull it in and hand the space to the
+     playlist instead. */
+  body:has(#playlist li) .stage {
+    flex: 0 0 auto;
+    padding-top: clamp(24px, 6vh, 56px);
+    padding-bottom: 24px;
+  }
+
+  body:has(#playlist li) .playlist-col {
+    flex: 1 1 auto;
+    min-height: 180px;
+    max-height: none;
+  }
 }
 
 /* ---------- Phone: an app-like layout (≤600px) ----------
@@ -335,10 +426,8 @@ body:has(#playlist li) .playlist-col { display: flex; }
   .search { flex-wrap: nowrap; gap: 6px; }
   .search-input { flex: 1 1 auto; min-width: 0; max-width: none; }
 
-  /* Hide the inline status on mobile (its loading chatter flashes); real errors
-     surface via the toast instead. */
-  .status { display: none; }
-  .toast { display: block; }
+  /* Clear the transport bar pinned to the bottom of the app shell. */
+  .toast { bottom: calc(72px + env(safe-area-inset-bottom)); }
 
   /* ---- Active session: fixed app shell ---- */
   body:has(#playlist li) {
@@ -359,7 +448,11 @@ body:has(#playlist li) .playlist-col { display: flex; }
     padding: 10px max(16px, env(safe-area-inset-right))
              0 max(16px, env(safe-area-inset-left));
     text-align: left;
+    /* One step up from the page, matching the playlist panel's gradient top, so
+       the header reads as a bar over the black player rather than page bleed. */
+    background: var(--surface);
   }
+
   /* App icon anchored top-left (absolute, so the in-flow search row sets the
      header height); the wordmark is swapped for it while a session is playing. */
   body:has(#playlist li) .brand {

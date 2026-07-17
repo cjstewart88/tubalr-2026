@@ -34,13 +34,15 @@ Load order and responsibilities:
 5. `js/player.js` — `Tubalr.player`: the transport/queue state machine (play order,
    lazy video resolution, auto-advance, shuffle, play/pause). Talks to `youtube` for
    playback, reports state to the UI via `init({ onChange, onStatus })`.
-6. `js/ui.js` — `Tubalr.ui`: DOM rendering + event wiring; also drives the mobile
-   error toast and the Media Session (lock-screen) metadata + action handlers.
+6. `js/ui.js` — `Tubalr.ui`: DOM rendering + event wiring; also drives the error toast
+   (the only status surface, on every viewport — transient loading messages are dropped)
+   and the Media Session (lock-screen) metadata + action handlers.
 7. `js/app.js` — bootstrap: config check + missing-key banner, loads the IFrame API,
-   registers the service worker (only over http/https).
+   tears down the old service worker (see below).
 
-Non-script static files: `manifest.webmanifest`, `sw.js`, `icons/` (the PWA), and
-`tools/icon-generator.html` (a standalone icon exporter, never loaded by the app).
+Non-script static files: `icons/` (favicon-32 = tab icon, icon-192 = mobile header logo,
+icon-512 = Media Session artwork) and `tools/icon-generator.html` (a standalone icon
+exporter, never loaded by the app).
 
 Data flow: `ui` → `playlist` (Last.fm) → `player.start(queue)` → `player` lazily calls
 `youtube.searchVideoId` per track → `youtube` IFrame plays; `ENDED`/error auto-advance.
@@ -60,21 +62,37 @@ Data flow: `ui` → `playlist` (Last.fm) → `player.start(queue)` → `player` 
 - Last.fm returns HTTP 200 with an `error` field on failure, and track/artist lists are
   "sometimes array, sometimes single object, sometimes missing" — `lastfm.js` normalizes
   both; keep that.
-- **PWA is additive and subpath-relative.** `manifest.webmanifest`, `sw.js`, and `icons/`
-  make the app installable; every URL is **relative** because Pages serves from the
-  `/tubalr-2026/` subpath (never use root-absolute paths). The service worker only
-  precaches the app shell — never API/playback traffic (quota/freshness) — and registers
-  only over http/https (no-op on `file://`). Its cache name is `tubalr-v1` in the repo and
-  gets stamped with the commit SHA at deploy time so returning visitors get fresh files;
-  during local dev the SW serves stale assets, so bypass it in DevTools. Regenerate the
-  icon PNGs with `tools/icon-generator.html` and commit them (the app itself stays
-  dependency-free).
+- **The PWA was removed** (manifest, service worker, install/home-screen metadata). Don't
+  reintroduce one without asking. `js/app.js` still carries `removeOldServiceWorker()`:
+  deleting `sw.js` does **not** uninstall the copies already registered in returning
+  visitors' browsers — an installed SW serves its cached shell forever — so the bootstrap
+  unregisters any it finds and deletes the `tubalr-*` caches. It's transitional and can go
+  once returning visitors have all loaded the site since the removal.
+- **Every URL stays relative** because Pages serves from the `/tubalr-2026/` subpath —
+  never use root-absolute paths.
+- Regenerate the icon PNGs with `tools/icon-generator.html` and commit them (the app itself
+  stays dependency-free).
 - **Desktop and mobile share one DOM.** The phone layout — an app-like shell (full-bleed
   player, scrolling playlist, transport pinned at the playlist bottom, a permanent
   icon + search header) — is driven entirely by a `@media (max-width: 600px)` block plus
   `:has()`-based visibility. Don't fork the markup; desktop must stay unchanged.
-- The accent color (`--accent`, green) and logo ink (`--ink`, near-black) are derived from
-  the app icon; keep the CSS palette and the icon in sync if either changes.
+- **The app is permanently dark** — there is no light theme and no
+  `prefers-color-scheme` branch; `:root` just declares `color-scheme: dark` so UA chrome
+  (scrollbars, caret) follows. Surfaces stack lightest-on-top: `--bg` (page) → `--surface`
+  (raised bars) → `--field-bg` (inputs/buttons). Use those variables rather than inlining
+  new greys — the surfaces are violet-tinted, not neutral. The accent (`--accent`, galaxy
+  purple) and logo ink (`--ink`, now near-white) are derived from the app icon; keep the
+  CSS palette and the icon in sync if either changes. Translucent accents use
+  `rgba(var(--accent-rgb), …)`, so `--accent` and `--accent-rgb` must stay the same colour.
+  The icon's glow lives in `tools/icon-generator.html` (`GLOW`/`CORE`); changing the accent
+  means re-exporting the PNGs from that tool and committing them.
+- **The chrome is a Winamp homage.** Controls are square (2px radius) and chiselled via the
+  `--bevel-out` / `--bevel-in` box-shadow pairs: things you press stand proud and invert to
+  sunken on `:active`; fields are sunken to begin with. Reuse those variables rather than
+  hand-rolling shadows. The playlist is the skin's playlist editor — mono (`--font-mono`),
+  tight rows, no separators, numbered by a **CSS counter** (`.playlist li::before`, so
+  `ui.js` keeps writing plain "artist – title"), with the playing row inverted into a solid
+  accent block.
 
 ## Deploy
 
