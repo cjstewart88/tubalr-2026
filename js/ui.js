@@ -7,6 +7,7 @@ window.Tubalr = window.Tubalr || {};
 
   var playlist = Tubalr.playlist;
   var player = Tubalr.player;
+  var recent = Tubalr.recent;
 
   var els = {};
   var lastCurrent = -1;
@@ -30,6 +31,8 @@ window.Tubalr = window.Tubalr || {};
     els.repeat = $("btn-repeat");
     els.playIcon = $("play-pause-icon");
     els.repeatIcon = $("repeat-icon");
+    els.recentSection = $("recent");
+    els.recentList = $("recent-list");
   }
 
   // Icon markup for the action the play/pause button performs (the opposite of
@@ -83,6 +86,55 @@ window.Tubalr = window.Tubalr || {};
       els.list.appendChild(li);
     });
     lastCurrent = -1;
+  }
+
+  // Recent searches: chips of past artist+mode searches. Built with textContent
+  // (artist names are user input — never innerHTML), each carrying its own play
+  // button and a × remove button. Section hides itself while the list is empty.
+  function renderRecent() {
+    var items = recent.list();
+    els.recentList.innerHTML = "";
+    if (!items.length) {
+      els.recentSection.hidden = true;
+      return;
+    }
+    items.forEach(function (item) {
+      var li = document.createElement("li");
+      li.className = "recent-chip";
+
+      var play = document.createElement("button");
+      play.type = "button";
+      play.className = "recent-chip-play";
+      play.dataset.artist = item.artist;
+      play.dataset.mode = item.mode;
+
+      var name = document.createElement("span");
+      name.className = "recent-chip-name";
+      name.textContent = item.artist;
+
+      var tag = document.createElement("span");
+      tag.className = "recent-chip-mode";
+      tag.textContent = item.mode;
+
+      play.appendChild(name);
+      play.appendChild(tag);
+
+      var remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "recent-chip-remove";
+      remove.dataset.artist = item.artist;
+      remove.dataset.mode = item.mode;
+      remove.setAttribute(
+        "aria-label",
+        "Remove " + item.artist + " (" + item.mode + ")"
+      );
+      remove.textContent = "×"; // ×
+
+      li.appendChild(play);
+      li.appendChild(remove);
+      els.recentList.appendChild(li);
+    });
+    els.recentSection.hidden = false;
   }
 
   function highlightCurrent(index) {
@@ -192,6 +244,8 @@ window.Tubalr = window.Tubalr || {};
         }
         renderPlaylist(queue);
         player.start(queue);
+        recent.add(artist, mode);
+        renderRecent();
       })
       .catch(function (err) {
         setStatus(err.message || "Something went wrong.", true);
@@ -222,6 +276,21 @@ window.Tubalr = window.Tubalr || {};
       player.playByQueueIndex(Number(li.dataset.index));
     });
 
+    // Recent chips: the × removes an entry; anywhere else on a chip fills the
+    // input with its artist and starts the session in its stored mode.
+    els.recentList.addEventListener("click", function (e) {
+      var remove = e.target.closest(".recent-chip-remove");
+      if (remove) {
+        recent.remove(remove.dataset.artist, remove.dataset.mode);
+        renderRecent();
+        return;
+      }
+      var play = e.target.closest(".recent-chip-play");
+      if (!play) return;
+      els.input.value = play.dataset.artist;
+      build(play.dataset.mode);
+    });
+
     els.shuffle.addEventListener("click", player.shuffleQueue);
     els.prev.addEventListener("click", player.prev);
     els.play.addEventListener("click", player.togglePlay);
@@ -233,6 +302,7 @@ window.Tubalr = window.Tubalr || {};
     cacheEls();
     wire();
     wireMediaSession();
+    renderRecent();
     player.init({ onChange: onChange, onStatus: setStatus });
   }
 
