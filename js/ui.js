@@ -33,6 +33,10 @@ window.Tubalr = window.Tubalr || {};
     els.repeatIcon = $("repeat-icon");
     els.recentSection = $("recent");
     els.recentList = $("recent-list");
+    els.tabQueue = $("tab-queue");
+    els.tabRecent = $("tab-recent");
+    els.recentPanel = $("panel-recent");
+    els.recentPanelList = $("recent-panel-list");
   }
 
   // Icon markup for the action the play/pause button performs (the opposite of
@@ -88,53 +92,93 @@ window.Tubalr = window.Tubalr || {};
     lastCurrent = -1;
   }
 
-  // Recent searches: chips of past artist+mode searches. Built with textContent
-  // (artist names are user input — never innerHTML), each carrying its own play
-  // button and a × remove button. Section hides itself while the list is empty.
+  // Recent searches: chips of past artist+mode searches. They appear in two
+  // places from one store — the landing-view #recent list and the playlist
+  // panel's Recent tab — so the same markup builds both.
+
+  // One chip, built with textContent (artist names are user input — never
+  // innerHTML), carrying a play button and a × remove button.
+  function buildChip(item) {
+    var li = document.createElement("li");
+    li.className = "recent-chip";
+
+    var play = document.createElement("button");
+    play.type = "button";
+    play.className = "recent-chip-play";
+    play.dataset.artist = item.artist;
+    play.dataset.mode = item.mode;
+
+    var name = document.createElement("span");
+    name.className = "recent-chip-name";
+    name.textContent = item.artist;
+
+    var tag = document.createElement("span");
+    tag.className = "recent-chip-mode";
+    tag.textContent = item.mode;
+
+    play.appendChild(name);
+    play.appendChild(tag);
+
+    var remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "recent-chip-remove";
+    remove.dataset.artist = item.artist;
+    remove.dataset.mode = item.mode;
+    remove.setAttribute(
+      "aria-label",
+      "Remove " + item.artist + " (" + item.mode + ")"
+    );
+    remove.textContent = "×"; // ×
+
+    li.appendChild(play);
+    li.appendChild(remove);
+    return li;
+  }
+
+  function fillChips(listEl, items) {
+    listEl.innerHTML = "";
+    items.forEach(function (item) {
+      listEl.appendChild(buildChip(item));
+    });
+  }
+
+  // Swap the panel between the live queue and the recent list.
+  function setActiveTab(name) {
+    var showRecent = name === "recent";
+    els.tabQueue.classList.toggle("active", !showRecent);
+    els.tabRecent.classList.toggle("active", showRecent);
+    els.tabQueue.setAttribute("aria-selected", showRecent ? "false" : "true");
+    els.tabRecent.setAttribute("aria-selected", showRecent ? "true" : "false");
+    els.list.hidden = showRecent;
+    els.recentPanel.hidden = !showRecent;
+  }
+
+  // Repaint both surfaces from the store; each hides itself while empty. The
+  // Recent tab disappears when there's nothing to show — and if it was the
+  // active tab, fall back to the queue.
   function renderRecent() {
     var items = recent.list();
-    els.recentList.innerHTML = "";
-    if (!items.length) {
-      els.recentSection.hidden = true;
+    var has = items.length > 0;
+    fillChips(els.recentList, items);
+    fillChips(els.recentPanelList, items);
+    els.recentSection.hidden = !has;
+    els.tabRecent.hidden = !has;
+    if (!has && els.tabRecent.classList.contains("active")) setActiveTab("queue");
+  }
+
+  // Shared by both chip lists: × forgets an entry; the chip body fills the input
+  // and starts that session (build() then flips to the Queue tab).
+  function onRecentClick(e) {
+    var remove = e.target.closest(".recent-chip-remove");
+    if (remove) {
+      recent.remove(remove.dataset.artist, remove.dataset.mode);
+      renderRecent();
       return;
     }
-    items.forEach(function (item) {
-      var li = document.createElement("li");
-      li.className = "recent-chip";
-
-      var play = document.createElement("button");
-      play.type = "button";
-      play.className = "recent-chip-play";
-      play.dataset.artist = item.artist;
-      play.dataset.mode = item.mode;
-
-      var name = document.createElement("span");
-      name.className = "recent-chip-name";
-      name.textContent = item.artist;
-
-      var tag = document.createElement("span");
-      tag.className = "recent-chip-mode";
-      tag.textContent = item.mode;
-
-      play.appendChild(name);
-      play.appendChild(tag);
-
-      var remove = document.createElement("button");
-      remove.type = "button";
-      remove.className = "recent-chip-remove";
-      remove.dataset.artist = item.artist;
-      remove.dataset.mode = item.mode;
-      remove.setAttribute(
-        "aria-label",
-        "Remove " + item.artist + " (" + item.mode + ")"
-      );
-      remove.textContent = "×"; // ×
-
-      li.appendChild(play);
-      li.appendChild(remove);
-      els.recentList.appendChild(li);
-    });
-    els.recentSection.hidden = false;
+    var play = e.target.closest(".recent-chip-play");
+    if (!play) return;
+    els.input.value = play.dataset.artist;
+    build(play.dataset.mode);
   }
 
   function highlightCurrent(index) {
@@ -246,6 +290,7 @@ window.Tubalr = window.Tubalr || {};
         player.start(queue);
         recent.add(artist, mode);
         renderRecent();
+        setActiveTab("queue"); // a new queue takes focus over the recent list
       })
       .catch(function (err) {
         setStatus(err.message || "Something went wrong.", true);
@@ -276,20 +321,12 @@ window.Tubalr = window.Tubalr || {};
       player.playByQueueIndex(Number(li.dataset.index));
     });
 
-    // Recent chips: the × removes an entry; anywhere else on a chip fills the
-    // input with its artist and starts the session in its stored mode.
-    els.recentList.addEventListener("click", function (e) {
-      var remove = e.target.closest(".recent-chip-remove");
-      if (remove) {
-        recent.remove(remove.dataset.artist, remove.dataset.mode);
-        renderRecent();
-        return;
-      }
-      var play = e.target.closest(".recent-chip-play");
-      if (!play) return;
-      els.input.value = play.dataset.artist;
-      build(play.dataset.mode);
-    });
+    // Recent chips live in two lists (landing + panel tab); both share one
+    // handler. The tab bar swaps the panel between the queue and the recents.
+    els.recentList.addEventListener("click", onRecentClick);
+    els.recentPanelList.addEventListener("click", onRecentClick);
+    els.tabQueue.addEventListener("click", function () { setActiveTab("queue"); });
+    els.tabRecent.addEventListener("click", function () { setActiveTab("recent"); });
 
     els.shuffle.addEventListener("click", player.shuffleQueue);
     els.prev.addEventListener("click", player.prev);

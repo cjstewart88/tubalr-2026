@@ -56,7 +56,20 @@
   </main>
 
   <aside class="playlist-col" aria-label="Playlist">
-    <ul id="playlist" class="playlist"></ul>
+    <!-- Two tabs over one panel: the live Queue and the Recent searches (so past
+         sessions stay reachable mid-playback). The Recent tab shares its chip
+         markup and store with the landing-view #recent list; it's hidden until
+         there's a recent to show. -->
+    <div class="panel-tabs" role="tablist" aria-label="Playlist and recent searches">
+      <button type="button" class="panel-tab active" id="tab-queue" role="tab" aria-selected="true" aria-controls="playlist">Queue</button>
+      <button type="button" class="panel-tab" id="tab-recent" role="tab" aria-selected="false" aria-controls="panel-recent" hidden>Recent</button>
+    </div>
+
+    <ul id="playlist" class="playlist" role="tabpanel" aria-labelledby="tab-queue"></ul>
+
+    <div id="panel-recent" class="recent-panel" role="tabpanel" aria-labelledby="tab-recent" hidden>
+      <ul class="recent-list" id="recent-panel-list"></ul>
+    </div>
 
     <!-- Transport lives at the bottom of the playlist panel on every viewport. -->
     <div class="transport">

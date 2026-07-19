@@ -367,6 +367,50 @@ a { color: inherit; text-decoration: none; }
   z-index: 900;
 }
 
+/* Panel tabs: the queue and the recent searches share the panel body, switched
+   by a two-tab bar at the top. Mono, uppercase — the editor's own voice. The
+   Recent tab is [hidden] by ui.js until there's a recent to show. */
+.panel-tabs {
+  display: flex;
+  flex: 0 0 auto;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid var(--border);
+}
+
+.panel-tab {
+  flex: 1 1 0;
+  padding: 9px 8px;
+  color: #8f8aa0;
+  font: 11px var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.panel-tab:hover { color: var(--text-strong); }
+/* Active tab: accent ink over a faint wash, underlined in the accent. */
+.panel-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.08);
+}
+
+/* The Recent tab's body: the chip list, scrolling to fill the panel like the
+   queue does. Left-aligned here (the landing list stays centered). */
+.recent-panel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+}
+.recent-panel .recent-list {
+  justify-content: flex-start;
+  gap: 6px;
+}
+
 /* The Winamp playlist editor: mono type, tight rows, every entry numbered. The
    counter is CSS-side so the JS keeps writing plain "artist – title" rows. */
 .playlist {
@@ -498,6 +542,7 @@ body:has(#playlist li) .playlist-col { display: flex; }
      a session, so this only affects the homescreen). */
   .recent-chip-play { min-height: 40px; font-size: 13px; }
   .recent-chip-remove { width: 40px; font-size: 18px; }
+  .panel-tab { min-height: 44px; font-size: 12px; }
 
   /* Keep the mode buttons on the same row as the input instead of wrapping to a
      second line: let the input shrink freely and hold everything on one line. */
