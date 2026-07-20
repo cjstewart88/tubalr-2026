@@ -12,6 +12,7 @@ window.Tubalr = window.Tubalr || {};
   var els = {};
   var lastCurrent = -1;
   var building = false;
+  var currentQueue = []; // the rendered queue, so a row's kebab knows its artist
 
   function $(id) {
     return document.getElementById(id);
@@ -81,15 +82,129 @@ window.Tubalr = window.Tubalr || {};
   }
 
   function renderPlaylist(queue) {
+    closeRowMenu(); // a new queue must not leave a menu pointing at a dead row
+    currentQueue = queue;
     els.list.innerHTML = "";
     queue.forEach(function (track, i) {
       var li = document.createElement("li");
+      // Plain text node: the CSS counter (.playlist li::before) and the row's
+      // text-overflow both work off the row's inline content. The kebab below is
+      // absolutely positioned, so it stays out of that flow.
       li.textContent = track.artist + " – " + track.title;
       li.title = li.textContent;
       li.dataset.index = String(i);
+      li.appendChild(buildRowMenuButton(track, i));
       els.list.appendChild(li);
     });
     lastCurrent = -1;
+  }
+
+  // ---- Row menu: start a fresh session from any track's artist ----------
+  // Mid-session (especially in "similar" mode, where every row is a different
+  // artist) the kebab is the way to chase one of them without retyping it.
+
+  function buildRowMenuButton(track, i) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "row-menu";
+    btn.dataset.index = String(i);
+    btn.setAttribute("aria-haspopup", "menu");
+    btn.setAttribute("aria-expanded", "false");
+    btn.setAttribute("aria-label", "Options for " + track.artist);
+    btn.textContent = "⋮";
+    return btn;
+  }
+
+  // One reusable popup, created lazily like the toast. It lives on <body>, not
+  // inside the row: .playlist scrolls (overflow-y: auto), which would clip it.
+  var menuEl = null;
+  var menuBtn = null; // the kebab that opened it, so we can reset aria-expanded
+
+  function menuItem(label, mode) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "row-action";
+    b.setAttribute("role", "menuitem");
+    b.dataset.mode = mode;
+    b.textContent = label;
+    return b;
+  }
+
+  function ensureMenu() {
+    if (menuEl) return menuEl;
+    menuEl = document.createElement("div");
+    menuEl.className = "row-actions";
+    menuEl.setAttribute("role", "menu");
+    menuEl.hidden = true;
+
+    menuEl.appendChild(menuItem("play this artist", "only"));
+    menuEl.appendChild(menuItem("play similar artists", "similar"));
+
+    // Picking an item is the same move as clicking a recent chip: fill the
+    // input, then hand off to build() for the reset + search.
+    menuEl.addEventListener("click", function (e) {
+      var item = e.target.closest(".row-action");
+      if (!item || !menuEl.dataset.artist) return;
+      els.input.value = menuEl.dataset.artist;
+      var mode = item.dataset.mode;
+      closeRowMenu();
+      build(mode);
+    });
+
+    document.body.appendChild(menuEl);
+    return menuEl;
+  }
+
+  function onDocClick(e) {
+    if (menuEl && !menuEl.contains(e.target) && !e.target.closest(".row-menu")) {
+      closeRowMenu();
+    }
+  }
+
+  function onDocKeydown(e) {
+    if (e.key === "Escape") closeRowMenu();
+  }
+
+  function openRowMenu(btn, track) {
+    if (!track) return;
+    var menu = ensureMenu();
+    if (menuBtn === btn) return closeRowMenu(); // second click toggles it shut
+    closeRowMenu();
+
+    menu.dataset.artist = track.artist;
+    menu.hidden = false;
+
+    // Fixed-positioned off the button, flipped above it near the viewport floor.
+    var r = btn.getBoundingClientRect();
+    var h = menu.offsetHeight;
+    var w = menu.offsetWidth;
+    var top = r.bottom + 4;
+    if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 4);
+    menu.style.top = top + "px";
+    menu.style.left = Math.max(8, Math.min(r.right - w, window.innerWidth - w - 8)) + "px";
+
+    menuBtn = btn;
+    btn.setAttribute("aria-expanded", "true");
+    btn.classList.add("open");
+
+    document.addEventListener("click", onDocClick);
+    document.addEventListener("keydown", onDocKeydown);
+    els.list.addEventListener("scroll", closeRowMenu);
+    window.addEventListener("resize", closeRowMenu);
+  }
+
+  function closeRowMenu() {
+    if (!menuEl || menuEl.hidden) return;
+    menuEl.hidden = true;
+    if (menuBtn) {
+      menuBtn.setAttribute("aria-expanded", "false");
+      menuBtn.classList.remove("open");
+      menuBtn = null;
+    }
+    document.removeEventListener("click", onDocClick);
+    document.removeEventListener("keydown", onDocKeydown);
+    els.list.removeEventListener("scroll", closeRowMenu);
+    window.removeEventListener("resize", closeRowMenu);
   }
 
   // Recent searches: chips of past artist+mode searches. They appear in two
@@ -316,6 +431,12 @@ window.Tubalr = window.Tubalr || {};
     });
 
     els.list.addEventListener("click", function (e) {
+      var kebab = e.target.closest(".row-menu");
+      if (kebab) {
+        // The kebab opens the menu instead of playing the row it sits on.
+        openRowMenu(kebab, currentQueue[Number(kebab.dataset.index)]);
+        return;
+      }
       var li = e.target.closest("li");
       if (!li) return;
       player.playByQueueIndex(Number(li.dataset.index));

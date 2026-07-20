@@ -93,6 +93,14 @@ Data flow: `ui` → `playlist` (Last.fm) → `player.start(queue)` → `player` 
   tight rows, no separators, numbered by a **CSS counter** (`.playlist li::before`, so
   `ui.js` keeps writing plain "artist – title"), with the playing row inverted into a solid
   accent block.
+- **Playlist rows carry a kebab (⋮) menu** — "play this artist" / "play similar artists" —
+  that restarts the session from *that row's* artist (the point of it: in similar mode every row
+  is a different artist). Two things keep it from disturbing the row: the button is
+  **absolutely positioned**, so the row's text node stays the only inline content and the
+  CSS counter + `text-overflow: ellipsis` keep working; and the popup is appended to
+  `<body>` and positioned `fixed`, because `.playlist` is `overflow-y: auto` and would clip
+  a nested one. Selecting an item just fills the search input and calls `build()` — the
+  same path a recent chip takes — so recents/tab-switching stay consistent.
 
 ## Deploy
 

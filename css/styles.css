@@ -426,7 +426,8 @@ a { color: inherit; text-decoration: none; }
 
 .playlist li {
   counter-increment: track;
-  padding: 5px 10px;
+  position: relative; /* anchors the row's kebab button */
+  padding: 5px 26px 5px 10px; /* right gap so titles ellipsis before the kebab */
   color: #cfcfcf;
   cursor: pointer;
   white-space: nowrap;
@@ -455,6 +456,74 @@ a { color: inherit; text-decoration: none; }
 .playlist li.current::before { color: rgba(20, 16, 28, 0.65); }
 
 .playlist li.pending { color: #8f8f8f; }
+
+/* ---------- Row kebab + its menu ---------- */
+/* Every row can start a fresh session from its own artist. The kebab is out of
+   the row's flow (absolute), so the counter and the title's ellipsis are
+   untouched. It stays invisible until the row is hovered/focused so the list
+   reads as cleanly as before. */
+.row-menu {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 22px;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: 14px/1 var(--font-mono);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.playlist li:hover .row-menu,
+.row-menu:focus-visible,
+.row-menu.open { opacity: 0.75; }
+
+.playlist li:hover .row-menu:hover,
+.row-menu.open { opacity: 1; }
+
+/* The playing row is a solid accent block, so its kebab takes the dark ink. */
+.playlist li.current .row-menu { color: #14101c; }
+
+.row-actions {
+  position: fixed;
+  /* Above the docked .playlist-col (900) it's anchored to, below the toast (1000). */
+  z-index: 950;
+  min-width: 168px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--field-border);
+  border-radius: 2px;
+  box-shadow: var(--bevel-out), 0 8px 20px rgba(0, 0, 0, 0.5);
+  font: 12px/1.4 var(--font-mono);
+}
+
+.row-actions[hidden] { display: none; }
+
+.row-action {
+  white-space: nowrap;
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 2px;
+  background: none;
+  color: var(--text-strong);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Same inversion the playing row uses, so the highlight reads as one language. */
+.row-action:hover,
+.row-action:focus-visible {
+  background: var(--accent);
+  color: #14101c;
+  outline: none;
+}
 
 /* ---------- Visibility: driven by whether the playlist has rows ---------- */
 .now-playing,
@@ -543,6 +612,13 @@ body:has(#playlist li) .playlist-col { display: flex; }
   .recent-chip-play { min-height: 40px; font-size: 13px; }
   .recent-chip-remove { width: 40px; font-size: 18px; }
   .panel-tab { min-height: 44px; font-size: 12px; }
+
+  /* No hover on touch: the kebab is always shown, and both it and the menu
+     items get thumb-sized targets. */
+  .playlist li { padding-right: 40px; }
+  .row-menu { width: 40px; opacity: 0.75; font-size: 16px; }
+  .row-action { padding: 11px 10px; }
+  .row-actions { min-width: 200px; }
 
   /* Keep the mode buttons on the same row as the input instead of wrapping to a
      second line: let the input shrink freely and hold everything on one line. */
