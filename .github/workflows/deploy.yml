@@ -4,6 +4,7 @@ name: Deploy to GitHub Pages
 # repo — they're injected into js/config.js from repository secrets at build time.
 # One-time setup:
 #   1. Settings -> Secrets and variables -> Actions: add LASTFM_KEY and YOUTUBE_KEY.
+#      SUPABASE_URL and SUPABASE_ANON_KEY are optional (shared video cache).
 #   2. Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
 
 on:
@@ -34,11 +35,15 @@ jobs:
         env:
           LASTFM_KEY: ${{ secrets.LASTFM_KEY }}
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           cat > js/config.js <<EOF
           window.TUBALR_CONFIG = {
             lastfmKey: "${LASTFM_KEY}",
             youtubeKey: "${YOUTUBE_KEY}",
+            supabaseUrl: "${SUPABASE_URL}",
+            supabaseAnonKey: "${SUPABASE_ANON_KEY}",
           };
           EOF
 

@@ -1,6 +1,6 @@
 // Recent searches store. Remembers artist+mode searches in localStorage so the
-// homescreen can offer one-tap resume. Dependency-free, mirrors the try/catch
-// localStorage style in youtube.js. Newest-first, capped, deduped by artist+mode.
+// homescreen can offer one-tap resume. Dependency-free. Newest-first, capped,
+// deduped by artist+mode.
 window.Tubalr = window.Tubalr || {};
 
 (function (Tubalr) {

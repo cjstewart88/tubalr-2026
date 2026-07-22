@@ -18,18 +18,25 @@ no build step, no backend.
   calls it directly.
 - **[YouTube Data API v3](https://developers.google.com/youtube/v3/docs/search/list)**
   (`search.list`) resolves each "artist – track" into a video ID. Video IDs are
-  **cached in `localStorage`** and resolved **lazily** (only the track you're about to
-  play, plus a prefetch of the next one).
+  resolved **lazily** (only the track you're about to play, plus a prefetch of the
+  next one) and cached in a **shared Supabase cache** (site-wide, so one visitor's
+  lookup saves every later visitor's quota) — see `js/supabase.js`. There's no
+  per-browser cache; every lookup, even a repeat, goes through the shared cache.
 - **[YouTube IFrame Player API](https://developers.google.com/youtube/iframe_api_reference)**
   handles playback and auto-advances the queue when a video ends.
 
 ### ⚠️ YouTube quota
 
 The free YouTube Data API quota is **10,000 units/day**, and each search costs **100
-units** — about **100 track lookups per day**. Lazy resolution + caching stretch this a
-long way (replaying a cached track costs nothing), but a heavy day of brand-new artists
-can hit the ceiling. If you need more, request additional quota in the Google Cloud
-console. When the quota is exhausted the app shows a message instead of failing silently.
+units** — about **100 track lookups per day**, shared across every visitor to the site.
+Lazy resolution stretches this a long way (only the track about to play, plus a
+one-track prefetch, are ever resolved), and the optional shared Supabase cache (see
+below) stretches it further still: once *any* visitor resolves a track, every other
+visitor — including that same visitor on a later visit — gets it for free. Without
+Supabase configured there's no caching at all: every lookup, even a repeat, costs
+quota. If you need more, request additional quota in the Google Cloud console. When the
+quota is exhausted the app shows a message instead of
+failing silently.
 
 ## Setup
 
@@ -43,6 +50,12 @@ console. When the quota is exhausted the app shows a message instead of failing 
    cp js/config.example.js js/config.js
    ```
    then edit `js/config.js` and paste in both keys. (`js/config.js` is git-ignored.)
+4. **Optional but recommended: shared video cache.** Create a
+   [Supabase](https://supabase.com) project, run
+   [`supabase/schema.sql`](supabase/schema.sql) once in its SQL editor, then paste the
+   project URL and anon/publishable key into `js/config.js`. Without this the app still
+   works, but every video lookup — even a repeat — costs YouTube quota, since there's no
+   fallback cache.
 
 ## Run
 
@@ -60,9 +73,11 @@ gets committed, yet the deployed site still has working keys.
 One-time setup on GitHub:
 
 1. **Add the secrets** — repo **Settings → Secrets and variables → Actions →
-   New repository secret**, twice:
+   New repository secret**:
    - `LASTFM_KEY` = your Last.fm key
    - `YOUTUBE_KEY` = your YouTube Data API key
+   - `SUPABASE_URL` / `SUPABASE_ANON_KEY` = optional, only if you set up the shared
+     video cache (see Setup above)
 2. **Enable Pages** — repo **Settings → Pages → Build and deployment → Source:
    GitHub Actions**.
 3. **Restrict the YouTube key by HTTP referrer** (Google Cloud console) to your Pages
@@ -76,13 +91,15 @@ the **Actions** tab). The site lands at `https://<user>.github.io/<repo>/`.
 ## Structure
 
 ```
-index.html            layout: header, player, playlist, transport
-css/styles.css        styles
-js/config.example.js  API-key template (copy to js/config.js)
-js/lastfm.js          Last.fm data layer
-js/youtube.js         YouTube search (cached) + IFrame player wrapper
-js/playlist.js        builds the "only" / "similar" queues
-js/player.js          transport + queue state machine (lazy resolve, auto-advance)
-js/ui.js              DOM rendering + event wiring
-js/app.js             bootstrap
+index.html             layout: header, player, playlist, transport
+css/styles.css         styles
+js/config.example.js   API-key template (copy to js/config.js)
+js/lastfm.js           Last.fm data layer
+js/supabase.js         shared video cache (optional, site-wide)
+js/youtube.js          YouTube search (cached via shared Supabase cache) + IFrame player wrapper
+js/playlist.js         builds the "only" / "similar" queues
+js/player.js           transport + queue state machine (lazy resolve, auto-advance)
+js/ui.js               DOM rendering + event wiring
+js/app.js              bootstrap
+supabase/schema.sql    reference SQL for the optional shared cache + playlist tables
 ```

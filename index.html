@@ -94,9 +94,13 @@
     </div>
   </aside>
 
-  <!-- Config first (defines window.TUBALR_CONFIG), then modules in dependency order. -->
+  <!-- Config first (defines window.TUBALR_CONFIG), then modules in dependency order.
+       Supabase JS client (CDN, no bundler/npm) is a static tag because supabase.js
+       needs window.supabase.createClient synchronously at load. -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="js/config.js"></script>
   <script src="js/lastfm.js"></script>
+  <script src="js/supabase.js"></script>
   <script src="js/youtube.js"></script>
   <script src="js/playlist.js"></script>
   <script src="js/player.js"></script>

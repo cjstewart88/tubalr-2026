@@ -1,13 +1,12 @@
-// YouTube layer: search.list to resolve "artist - track" -> videoId (cached in
-// localStorage to conserve the 100-searches/day quota), plus a thin wrapper over
-// the IFrame Player API used by player.js.
+// YouTube layer: search.list to resolve "artist - track" -> videoId, cached in
+// Supabase (site-wide, see supabase.js) to conserve the 100-searches/day quota, plus a
+// thin wrapper over the IFrame Player API used by player.js.
 window.Tubalr = window.Tubalr || {};
 
 (function (Tubalr) {
   "use strict";
 
   var SEARCH_URL = "https://www.googleapis.com/youtube/v3/search";
-  var CACHE_PREFIX = "yt:";
 
   function apiKey() {
     return (window.TUBALR_CONFIG && window.TUBALR_CONFIG.youtubeKey) || "";
@@ -20,28 +19,18 @@ window.Tubalr = window.Tubalr || {};
   }
   QuotaError.prototype = Object.create(Error.prototype);
 
-  function cacheGet(query) {
-    try {
-      return localStorage.getItem(CACHE_PREFIX + query);
-    } catch (e) {
-      return null;
-    }
-  }
-
-  function cacheSet(query, videoId) {
-    try {
-      localStorage.setItem(CACHE_PREFIX + query, videoId);
-    } catch (e) {
-      /* storage full / unavailable — ignore, caching is best-effort */
-    }
-  }
-
   // Resolve a search query to a single embeddable videoId.
+  // Supabase shared cache (site-wide) first, then YouTube search.list (last resort,
+  // costs quota) on a miss.
   // Returns a Promise<string|null>; rejects with QuotaError on quota exhaustion.
   function searchVideoId(query) {
-    var cached = cacheGet(query);
-    if (cached) return Promise.resolve(cached);
+    return Tubalr.sharedCache.getCachedVideoId(query).then(function (shared) {
+      if (shared) return shared;
+      return fetchFromYouTube(query);
+    });
+  }
 
+  function fetchFromYouTube(query) {
     var params = new URLSearchParams({
       part: "snippet",
       type: "video",
@@ -69,7 +58,7 @@ window.Tubalr = window.Tubalr || {};
           }
           var item = data.items && data.items[0];
           var id = item && item.id && item.id.videoId;
-          if (id) cacheSet(query, id);
+          if (id) Tubalr.sharedCache.cacheVideoId(query, id);
           return id || null;
         });
       });
