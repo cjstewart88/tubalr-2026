@@ -367,12 +367,32 @@ window.Tubalr = window.Tubalr || {};
     ms.playbackState = state.playing ? "playing" : "paused";
   }
 
+  // ---- Tab title: reflects the current track, falls back to the app name ----
+
+  var BASE_TITLE = "tubalr";
+
+  function updateDocumentTitle(state) {
+    var track = state.queue[state.currentIndex];
+    if (!track) {
+      document.title = BASE_TITLE;
+      return;
+    }
+    document.title =
+      (state.playing ? "▶ " : "❚❚ ") +
+      track.artist +
+      " – " +
+      track.title +
+      " · " +
+      BASE_TITLE;
+  }
+
   // player -> UI
   function onChange(state) {
     highlightCurrent(state.currentIndex);
     reflectPlaying(state.playing);
     reflectRepeat(state.repeatMode);
     updateMediaSession(state);
+    updateDocumentTitle(state);
   }
 
   function setBuilding(on) {
