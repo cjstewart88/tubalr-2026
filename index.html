@@ -2,6 +2,25 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+
+  <!-- Content-Security-Policy: a blast-radius backstop, not the primary defence.
+       Each source is an origin the app actually talks to (see the module that uses
+       it). No 'unsafe-inline' is needed anywhere — every <script> is external and
+       handlers are wired via addEventListener; styles are set through the CSSOM
+       (el.style.*), which CSP doesn't govern. frame-ancestors / report-uri /
+       report-only are ignored in a meta CSP (they need real HTTP headers, which
+       Pages can't set), so this is enforcing-only. -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' https://cdn.jsdelivr.net https://www.youtube.com https://s.ytimg.com;
+    style-src 'self' https://fonts.googleapis.com;
+    font-src https://fonts.gstatic.com;
+    img-src 'self';
+    connect-src 'self' https://ws.audioscrobbler.com https://www.googleapis.com https://*.supabase.co wss://*.supabase.co;
+    frame-src https://www.youtube.com https://www.youtube-nocookie.com;
+    object-src 'none';
+    base-uri 'self'" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>tubalr</title>
 
@@ -96,8 +115,15 @@
 
   <!-- Config first (defines window.TUBALR_CONFIG), then modules in dependency order.
        Supabase JS client (CDN, no bundler/npm) is a static tag because supabase.js
-       needs window.supabase.createClient synchronously at load. -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+       needs window.supabase.createClient synchronously at load. Pinned to an exact
+       version + SRI hash so a compromised CDN/package can't inject arbitrary JS;
+       the trade-off is that upgrades are a manual bump-and-recompute of the hash
+       (curl the file | openssl dgst -sha384 -binary | openssl base64 -A).
+       crossorigin is required for SRI on a cross-origin script; jsdelivr sends CORS. -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.8/dist/umd/supabase.js"
+    integrity="sha384-M65KxMm/JqBppck6onbmAgPVMBHrmPCf1L17Q+71EcvI9/VVI8j5cqoxQf6lj6h2"
+    crossorigin="anonymous"></script>
   <script src="js/config.js"></script>
   <script src="js/lastfm.js"></script>
   <script src="js/supabase.js"></script>
