@@ -237,6 +237,46 @@ a { color: inherit; text-decoration: none; }
 }
 .recent-chip-remove:hover { color: #fff; background: rgba(var(--accent-rgb), 0.35); }
 
+/* ---------- Genre chips (landing view only, curated tag list) ---------- */
+.genre-chips {
+  max-width: 460px;
+  margin: 26px auto 0;
+}
+
+.genre-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Same proud-standing bevelled shell as .recent-chip, but a single button —
+   there's nothing to remove, just a shortcut into genre mode. */
+.genre-chip {
+  padding: 6px 12px;
+  color: var(--text);
+  font: 12px var(--font-mono);
+  background: linear-gradient(#2c2839, #232030);
+  border: 1px solid var(--field-border);
+  border-radius: 2px;
+  box-shadow: var(--bevel-out);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.genre-chip:hover { color: var(--accent); border-color: var(--accent); }
+.genre-chip:active {
+  background: linear-gradient(#232030, #2c2839);
+  box-shadow: var(--bevel-in);
+}
+
+/* "+N more" / "collapse": accent-coloured at rest (unlike a plain genre chip)
+   so they read as an action, not another tag to play. */
+.genre-chip-more,
+.genre-chip-collapse { color: var(--accent); }
+
 /* Toast — the only status surface; errors slide up from the bottom on .show and
    auto-dismiss. Mobile lifts it clear of the pinned transport bar. */
 .toast {
@@ -531,6 +571,9 @@ a { color: inherit; text-decoration: none; }
 
 body:has(#playlist li) .hint { display: none; }
 body:has(#playlist li) .recent { display: none; }
+/* Genre chips stay put even once recents show (unlike .hint below) — they're a
+   permanent shortcut, not intro copy to be replaced. */
+body:has(#playlist li) .genre-chips { display: none; }
 /* Recents replace the intro copy: once #recent is populated (its [hidden]
    attribute cleared by ui.js), drop the hint. */
 body:has(#recent:not([hidden])) .hint { display: none; }

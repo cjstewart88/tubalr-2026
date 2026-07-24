@@ -73,8 +73,23 @@ window.Tubalr = window.Tubalr || {};
     });
   }
 
+  // -> [artistName]
+  function getTagTopArtists(tag, limit) {
+    // tag.getTopArtists has no autocorrect param (unlike artist.* methods).
+    return call("tag.getTopArtists", {
+      tag: tag,
+      limit: limit || 10,
+    }).then(function (data) {
+      var artists = asArray(data.topartists && data.topartists.artist);
+      return artists.map(function (a) {
+        return a.name;
+      });
+    });
+  }
+
   Tubalr.lastfm = {
     getTopTracks: getTopTracks,
     getSimilarArtists: getSimilarArtists,
+    getTagTopArtists: getTagTopArtists,
   };
 })(window.Tubalr);

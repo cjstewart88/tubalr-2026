@@ -8,11 +8,17 @@ window.Tubalr = window.Tubalr || {};
   var playlist = Tubalr.playlist;
   var player = Tubalr.player;
   var recent = Tubalr.recent;
+  var genres = Tubalr.genres;
+
+  var BUILDERS = { only: playlist.buildOnly, similar: playlist.buildSimilar, genre: playlist.buildGenre };
+  var STATUS_VERB = { only: "top tracks for ", similar: "artists similar to ", genre: "the genre " };
+  var GENRE_VISIBLE = 8; // chips shown before the "+N more" chip
 
   var els = {};
   var lastCurrent = -1;
   var building = false;
   var currentQueue = []; // the rendered queue, so a row's kebab knows its artist
+  var genresExpanded = false; // "+N more" was clicked; resets on next genre pick
 
   function $(id) {
     return document.getElementById(id);
@@ -38,6 +44,7 @@ window.Tubalr = window.Tubalr || {};
     els.tabRecent = $("tab-recent");
     els.recentPanel = $("panel-recent");
     els.recentPanelList = $("recent-panel-list");
+    els.genreChipList = $("genre-chip-list");
   }
 
   // Icon markup for the action the play/pause button performs (the opposite of
@@ -281,6 +288,51 @@ window.Tubalr = window.Tubalr || {};
     if (!has && els.tabRecent.classList.contains("active")) setActiveTab("queue");
   }
 
+  // Genre shortcuts: an MRU-ordered, localStorage-backed list (js/genres.js).
+  // Only the first GENRE_VISIBLE show; a trailing "+N more" chip reveals the
+  // rest. Picking a genre moves it to the front for next time and collapses
+  // back to the compact view.
+
+  function buildGenreChip(name) {
+    var li = document.createElement("li");
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "genre-chip";
+    btn.dataset.genre = name;
+    btn.textContent = name;
+    li.appendChild(btn);
+    return li;
+  }
+
+  function buildToggleChip(label, extraClass) {
+    var li = document.createElement("li");
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "genre-chip " + extraClass;
+    btn.textContent = label;
+    li.appendChild(btn);
+    return li;
+  }
+
+  function renderGenreChips() {
+    var all = genres.list();
+    var visible = genresExpanded ? all : all.slice(0, GENRE_VISIBLE);
+    els.genreChipList.innerHTML = "";
+    visible.forEach(function (name) {
+      els.genreChipList.appendChild(buildGenreChip(name));
+    });
+    if (genresExpanded) {
+      if (all.length > GENRE_VISIBLE) {
+        els.genreChipList.appendChild(buildToggleChip("collapse", "genre-chip-collapse"));
+      }
+    } else {
+      var hidden = all.length - visible.length;
+      if (hidden > 0) {
+        els.genreChipList.appendChild(buildToggleChip("+" + hidden + " more", "genre-chip-more"));
+      }
+    }
+  }
+
   // Shared by both chip lists: × forgets an entry; the chip body fills the input
   // and starts that session (build() then flips to the Queue tab).
   function onRecentClick(e) {
@@ -408,12 +460,9 @@ window.Tubalr = window.Tubalr || {};
     // Dismiss the mobile keyboard once a search starts.
     els.input.blur();
     setBuilding(true);
-    setStatus("Loading " + (mode === "similar" ? "artists similar to " : "top tracks for ") + "“" + artist + "”…");
+    setStatus("Loading " + (STATUS_VERB[mode] || STATUS_VERB.only) + "“" + artist + "”…");
 
-    var promise =
-      mode === "similar"
-        ? playlist.buildSimilar(artist)
-        : playlist.buildOnly(artist);
+    var promise = (BUILDERS[mode] || playlist.buildOnly)(artist);
 
     promise
       .then(function (queue) {
@@ -435,17 +484,29 @@ window.Tubalr = window.Tubalr || {};
       });
   }
 
+  // If what's typed matches a curated genre exactly (case-insensitive), genre
+  // mode wins no matter which button is clicked — "rap" + "similar" should
+  // play the genre, not fail trying to look up an artist named "rap".
+  function modeFor(requested) {
+    var text = els.input.value.trim().toLowerCase();
+    var isGenre = genres.list().some(function (g) {
+      return g.toLowerCase() === text;
+    });
+    return isGenre ? "genre" : requested;
+  }
+
   function wire() {
     // Submit (Enter or the "only" button) defaults to "only".
     els.form.addEventListener("submit", function (e) {
       e.preventDefault();
-      build("only");
+      build(modeFor("only"));
     });
-    // "similar" button.
+    // Every other mode button (currently just "similar") builds its own mode
+    // on click, keyed generically off data-mode rather than hardcoded.
     els.modeButtons.forEach(function (b) {
-      if (b.dataset.mode === "similar") {
+      if (b.type !== "submit") {
         b.addEventListener("click", function () {
-          build("similar");
+          build(modeFor(b.dataset.mode));
         });
       }
     });
@@ -466,6 +527,34 @@ window.Tubalr = window.Tubalr || {};
     // handler. The tab bar swaps the panel between the queue and the recents.
     els.recentList.addEventListener("click", onRecentClick);
     els.recentPanelList.addEventListener("click", onRecentClick);
+
+    // Genre mode has no mode button of its own — a chip fills the input with
+    // its tag and calls build("genre") directly, same handoff a recent chip
+    // uses. The trailing "+N more"/"collapse" chip just toggles the list
+    // instead of playing.
+    els.genreChipList.addEventListener("click", function (e) {
+      var more = e.target.closest(".genre-chip-more");
+      if (more) {
+        genresExpanded = true;
+        renderGenreChips();
+        return;
+      }
+      var collapse = e.target.closest(".genre-chip-collapse");
+      if (collapse) {
+        genresExpanded = false;
+        renderGenreChips();
+        return;
+      }
+      var chip = e.target.closest(".genre-chip");
+      if (!chip) return;
+      var name = chip.dataset.genre;
+      els.input.value = name;
+      genres.use(name);
+      genresExpanded = false; // back to the compact view for next time
+      renderGenreChips();
+      build("genre");
+    });
+
     els.tabQueue.addEventListener("click", function () { setActiveTab("queue"); });
     els.tabRecent.addEventListener("click", function () { setActiveTab("recent"); });
 
@@ -481,6 +570,7 @@ window.Tubalr = window.Tubalr || {};
     wire();
     wireMediaSession();
     renderRecent();
+    renderGenreChips();
     player.init({ onChange: onChange, onStatus: setStatus });
   }
 

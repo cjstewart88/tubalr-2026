@@ -58,13 +58,24 @@
     <p class="hint">
       Type an artist, then pick a mode. only plays their top tracks;
       similar weaves in tracks from related artists — one continuous
-      YouTube session, minus the clutter.
+      YouTube session, minus the clutter. Or skip typing and pick a
+      genre below.
     </p>
 
     <!-- Recent searches (landing view only; hidden once a session runs, like the
          hint). Populated from localStorage by ui.js; stays hidden while empty. -->
     <section class="recent" id="recent" hidden>
       <ul id="recent-list" class="recent-list"></ul>
+    </section>
+
+    <!-- Curated genre shortcuts (landing view only): genre mode has no mode
+         button/free-text entry of its own — this chip list is the only way
+         in, each one filling the input and calling build("genre") directly
+         (see the click handler in js/ui.js wire()). Populated from
+         js/genres.js's MRU-ordered, localStorage-backed list; only the first
+         few show until "+N more" is clicked. -->
+    <section class="genre-chips" id="genre-chips">
+      <ul id="genre-chip-list" class="genre-chip-list"></ul>
     </section>
 
     <section class="now-playing">
@@ -131,6 +142,7 @@
   <script src="js/playlist.js"></script>
   <script src="js/player.js"></script>
   <script src="js/recent.js"></script>
+  <script src="js/genres.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/app.js"></script>
 </body>

@@ -13,6 +13,8 @@ window.Tubalr = window.Tubalr || {};
   var ONLY_LIMIT = 50; // "only" mode: top tracks by the searched artist.
   var SIMILAR_ARTISTS = 10; // "similar" mode: how many similar artists to pull.
   var SIMILAR_TRACKS_PER = 4; // "similar" mode: top tracks per similar artist.
+  var GENRE_ARTISTS = 10; // "genre" mode: how many top artists to pull for the tag.
+  var GENRE_TRACKS_PER = 4; // "genre" mode: top tracks per artist.
 
   function toTrack(t) {
     return {
@@ -84,8 +86,32 @@ window.Tubalr = window.Tubalr || {};
       });
   }
 
+  // "genre" — top artists for a tag, top tracks each, interleaved and de-duped.
+  // Missing/failed artists are skipped, not fatal.
+  function buildGenre(genre) {
+    return lastfm
+      .getTagTopArtists(genre, GENRE_ARTISTS)
+      .then(function (names) {
+        if (!names.length) return [];
+        var perArtist = names.map(function (name) {
+          return lastfm
+            .getTopTracks(name, GENRE_TRACKS_PER)
+            .catch(function () {
+              return []; // one artist failing shouldn't sink the whole playlist
+            });
+        });
+        return Promise.all(perArtist).then(function (results) {
+          var lists = results.map(function (tracks) {
+            return tracks.map(toTrack);
+          });
+          return dedupe(roundRobin(lists));
+        });
+      });
+  }
+
   Tubalr.playlist = {
     buildOnly: buildOnly,
     buildSimilar: buildSimilar,
+    buildGenre: buildGenre,
   };
 })(window.Tubalr);

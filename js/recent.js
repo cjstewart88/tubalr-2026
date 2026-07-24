@@ -22,7 +22,11 @@ window.Tubalr = window.Tubalr || {};
       if (!Array.isArray(arr)) return [];
       // Keep only well-formed entries; tolerate anything else in storage.
       return arr.filter(function (e) {
-        return e && typeof e.artist === "string" && (e.mode === "only" || e.mode === "similar");
+        return (
+          e &&
+          typeof e.artist === "string" &&
+          (e.mode === "only" || e.mode === "similar" || e.mode === "genre")
+        );
       });
     } catch (e) {
       return [];
@@ -41,7 +45,7 @@ window.Tubalr = window.Tubalr || {};
   // otherwise prepend. Trim to the cap.
   function add(artist, mode) {
     var name = String(artist).trim();
-    if (!name || (mode !== "only" && mode !== "similar")) return;
+    if (!name || (mode !== "only" && mode !== "similar" && mode !== "genre")) return;
     var k = keyOf(name, mode);
     var arr = list().filter(function (e) {
       return keyOf(e.artist, e.mode) !== k;
