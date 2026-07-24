@@ -90,11 +90,11 @@ Data flow: `ui` → `playlist` (Last.fm) → `player.start(queue)` → `player` 
   "sometimes array, sometimes single object, sometimes missing" — `lastfm.js` normalizes
   both; keep that.
 - **The PWA was removed** (manifest, service worker, install/home-screen metadata). Don't
-  reintroduce one without asking. `js/app.js` still carries `removeOldServiceWorker()`:
-  deleting `sw.js` does **not** uninstall the copies already registered in returning
-  visitors' browsers — an installed SW serves its cached shell forever — so the bootstrap
-  unregisters any it finds and deletes the `tubalr-*` caches. It's transitional and can go
-  once returning visitors have all loaded the site since the removal.
+  reintroduce one without asking. The transitional `removeOldServiceWorker()` bootstrap —
+  which unregistered any leftover SW and binned its `tubalr-*` caches so returning visitors
+  weren't stuck on the old cached shell — has also been removed now that the only user has
+  cycled through. If a service worker ever comes back, that teardown may need to come back
+  with it.
 - **Every URL stays relative** because Pages serves from the `/tubalr-2026/` subpath —
   never use root-absolute paths.
 - Regenerate the icon PNGs with `tools/icon-generator.html` and commit them (the app itself
