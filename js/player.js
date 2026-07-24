@@ -15,19 +15,9 @@ window.Tubalr = window.Tubalr || {};
   var playing = false;
   var failStreak = 0; // consecutive unresolved tracks (loop guard)
   var repeatMode = "all"; // "all" = loop the queue; "one" = replay current on end
+  var reordered = false; // one-shot: the next notify redraws the rows, not just re-highlights
 
   var cb = { onChange: function () {}, onStatus: function () {} };
-
-  function shuffled(arr) {
-    var a = arr.slice();
-    for (var i = a.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
-      var tmp = a[i];
-      a[i] = a[j];
-      a[j] = tmp;
-    }
-    return a;
-  }
 
   function currentTrack() {
     return queue[pos];
@@ -39,7 +29,9 @@ window.Tubalr = window.Tubalr || {};
       currentIndex: queue.length ? pos : -1,
       playing: playing,
       repeatMode: repeatMode,
+      reordered: reordered,
     });
+    reordered = false; // consumed; only the notify right after a reshuffle redraws rows
   }
 
   function status(msg, isError) {
@@ -178,12 +170,20 @@ window.Tubalr = window.Tubalr || {};
   }
 
   // Reorder the whole visible playlist and immediately play from the new track 1.
-  // A one-shot action, not a mode — spam it to reroll the order. Any manual drag
-  // reordering is intentionally thrown away; shuffle rebuilds the list from scratch.
+  // A one-shot action, not a mode — spam it to reroll the order. The queue is
+  // shuffled *in place* (the UI renders from that same array), and `reordered` tells
+  // the UI to redraw the rows rather than just re-highlight. Any manual drag order
+  // is intentionally thrown away; shuffle rebuilds the list from scratch.
   function shuffleQueue() {
     if (!queue.length) return;
-    queue = shuffled(queue);
+    for (var i = queue.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = queue[i];
+      queue[i] = queue[j];
+      queue[j] = tmp;
+    }
     failStreak = 0;
+    reordered = true;
     playAt(0, 1);
   }
 

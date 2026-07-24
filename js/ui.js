@@ -18,6 +18,7 @@ window.Tubalr = window.Tubalr || {};
   var lastCurrent = -1;
   var building = false;
   var currentQueue = []; // the rendered queue, so a row's kebab knows its artist
+  var currentMode = "only"; // mode the list was rendered in, so a reshuffle can redraw it
   var genresExpanded = false; // "+N more" was clicked; resets on next genre pick
 
   function $(id) {
@@ -92,6 +93,7 @@ window.Tubalr = window.Tubalr || {};
     closeRowMenu(); // a new queue must not leave a menu pointing at a dead row
     finishDrag(false); // ...nor a drag holding a row that's about to be thrown away
     currentQueue = queue;
+    currentMode = mode;
     els.list.innerHTML = "";
     queue.forEach(function (track, i) {
       var li = document.createElement("li");
@@ -687,6 +689,9 @@ window.Tubalr = window.Tubalr || {};
 
   // player -> UI
   function onChange(state) {
+    // A reshuffle reorders the queue in place; redraw the rows so the visible list
+    // matches the new order (the normal path only re-highlights the playing row).
+    if (state.reordered) renderPlaylist(state.queue, currentMode);
     highlightCurrent(state.currentIndex);
     reflectPlaying(state.playing);
     reflectRepeat(state.repeatMode);
