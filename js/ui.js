@@ -682,13 +682,7 @@ window.Tubalr = window.Tubalr || {};
       document.title = BASE_TITLE;
       return;
     }
-    document.title =
-      (state.playing ? "▶ " : "❚❚ ") +
-      track.artist +
-      " – " +
-      track.title +
-      " · " +
-      BASE_TITLE;
+    document.title = track.artist + " – " + track.title + " · " + BASE_TITLE;
   }
 
   // player -> UI
