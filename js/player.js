@@ -10,20 +10,13 @@ window.Tubalr = window.Tubalr || {};
 
   var FAIL_STREAK_STOP = 3; // consecutive unplayable tracks before we stop and explain
 
-  var queue = []; // [{ artist, title, query, videoId }]
-  var order = []; // permutation of queue indices = the play order
-  var pos = 0; // position within `order`
+  var queue = []; // [{ artist, title, query, videoId }] — also the play order
+  var pos = 0; // index of the current track within `queue`
   var playing = false;
   var failStreak = 0; // consecutive unresolved tracks (loop guard)
   var repeatMode = "all"; // "all" = loop the queue; "one" = replay current on end
 
   var cb = { onChange: function () {}, onStatus: function () {} };
-
-  function range(n) {
-    var a = [];
-    for (var i = 0; i < n; i++) a.push(i);
-    return a;
-  }
 
   function shuffled(arr) {
     var a = arr.slice();
@@ -36,22 +29,14 @@ window.Tubalr = window.Tubalr || {};
     return a;
   }
 
-  // True while the play order is still the queue's own order (i.e. never shuffled).
-  function isSequential(a) {
-    for (var i = 0; i < a.length; i++) {
-      if (a[i] !== i) return false;
-    }
-    return true;
-  }
-
   function currentTrack() {
-    return queue[order[pos]];
+    return queue[pos];
   }
 
   function notify() {
     cb.onChange({
       queue: queue,
-      currentIndex: queue.length ? order[pos] : -1,
+      currentIndex: queue.length ? pos : -1,
       playing: playing,
       repeatMode: repeatMode,
     });
@@ -89,7 +74,7 @@ window.Tubalr = window.Tubalr || {};
         track.videoId = id;
         if (!id) {
           failStreak++;
-          if (failStreak >= order.length) {
+          if (failStreak >= queue.length) {
             playing = false;
             status("Couldn't find playable videos for this playlist.", true);
             notify();
@@ -118,9 +103,9 @@ window.Tubalr = window.Tubalr || {};
   }
 
   function advance(dir) {
-    if (!order.length) return;
-    var p = (pos + dir) % order.length;
-    if (p < 0) p += order.length; // JS % keeps sign; normalize for dir === -1
+    if (!queue.length) return;
+    var p = (pos + dir) % queue.length;
+    if (p < 0) p += queue.length; // JS % keeps sign; normalize for dir === -1
     playAt(p, dir);
   }
 
@@ -128,7 +113,6 @@ window.Tubalr = window.Tubalr || {};
 
   function start(newQueue) {
     queue = newQueue || [];
-    order = range(queue.length);
     pos = 0;
     failStreak = 0;
     repeatMode = "all"; // each new playlist defaults to looping the whole queue
@@ -153,15 +137,15 @@ window.Tubalr = window.Tubalr || {};
 
   // Jump to a specific track by its index in `queue` (playlist-row click).
   function playByQueueIndex(qi) {
-    var p = order.indexOf(qi);
-    if (p < 0) return;
+    if (qi < 0 || qi >= queue.length) return;
     failStreak = 0;
-    playAt(p, 1);
+    playAt(qi, 1);
   }
 
   // Move a track to a new slot in the queue (the playlist's drag & drop). Whatever
   // is playing keeps playing, uninterrupted — only where it sits changes.
-  // `queue` is spliced in place because the UI renders from the same array.
+  // `queue` is spliced in place because the UI renders from the same array, and the
+  // list *is* the play order, so `pos` just follows the current track to its new slot.
   function moveTrack(from, to) {
     var n = queue.length;
     if (!n || from === to) return;
@@ -174,22 +158,8 @@ window.Tubalr = window.Tubalr || {};
       return i >= to && i < from ? i + 1 : i;
     }
 
-    var wasSequential = isSequential(order);
-    var currentQi = order[pos];
     queue.splice(to, 0, queue.splice(from, 1)[0]);
-
-    if (wasSequential) {
-      // Nothing has reordered the play order yet, so it's the list you see —
-      // and dragging a row is a statement about play order. Follow the list and
-      // stay on the track that's playing, wherever it ended up.
-      order = range(n);
-      pos = remap(currentQi);
-    } else {
-      // A shuffled order is its own sequence; a drag rearranges the view, not
-      // what plays next. Renumber the indices it points at and `pos` still means
-      // the same track.
-      order = order.map(remap);
-    }
+    pos = remap(pos);
     notify();
   }
 
@@ -207,11 +177,12 @@ window.Tubalr = window.Tubalr || {};
     notify();
   }
 
-  // Reshuffle the whole queue and immediately play from the top of the new order.
-  // A one-shot action, not a mode — spam it to reroll the order.
+  // Reorder the whole visible playlist and immediately play from the new track 1.
+  // A one-shot action, not a mode — spam it to reroll the order. Any manual drag
+  // reordering is intentionally thrown away; shuffle rebuilds the list from scratch.
   function shuffleQueue() {
     if (!queue.length) return;
-    order = shuffled(range(queue.length));
+    queue = shuffled(queue);
     failStreak = 0;
     playAt(0, 1);
   }
@@ -220,8 +191,8 @@ window.Tubalr = window.Tubalr || {};
   // quota hit happens ahead of time rather than mid-gap).
   function prefetchNext() {
     var np = pos + 1;
-    if (np >= order.length) return;
-    var t = queue[order[np]];
+    if (np >= queue.length) return;
+    var t = queue[np];
     if (!t || t.videoId) return;
     youtube
       .searchVideoId(t.query)
@@ -249,7 +220,7 @@ window.Tubalr = window.Tubalr || {};
     // isolated failures silently, but once enough fail in a row, stop the session:
     // the user can search again or click a track to reset.
     failStreak++;
-    if (failStreak >= Math.min(FAIL_STREAK_STOP, order.length)) {
+    if (failStreak >= Math.min(FAIL_STREAK_STOP, queue.length)) {
       playing = false;
       status("Something went wrong: " + code, true);
       notify();

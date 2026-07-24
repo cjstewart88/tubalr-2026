@@ -136,10 +136,11 @@ Data flow: `ui` → `playlist` (Last.fm) → `player.start(queue)` → `player` 
   `data-index` (the visible numbers are a CSS counter). The delta adds the list's
   `scrollTop` change, or auto-scrolling at the panel edge would slide the row out from
   under the pointer. (2) *`player.moveTrack(from, to)` owns the consequences*: it splices
-  `queue` **in place** (the UI renders from that same array) and then either follows the
-  list — if the play order was never shuffled, the list *is* the play order, so it stays
-  identity and `pos` moves to the current track's new slot — or, if shuffled, keeps that
-  sequence and only renumbers the indices it points at. Playback never restarts. (3) The
+  `queue` **in place** (the UI renders from that same array) and moves `pos` to the
+  current track's new slot, so playback never restarts. The visible list **is** the play
+  order — there's no separate play-order permutation — because shuffle (`shuffleQueue`)
+  reorders `queue` itself and restarts from the top, discarding any manual drag order, so
+  `moveTrack` only has to follow the list. (3) The
   hold does double duty: it also starts the row-text scroll, which is how a truncated
   title is read on touch (hover does it with a mouse). Touch listeners are bound to
   `.playlist`, not `document`, because the drag needs a **non-passive** `touchmove` to
