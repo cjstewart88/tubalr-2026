@@ -128,6 +128,22 @@ Data flow: `ui` → `playlist` (Last.fm) → `player.start(queue)` → `player` 
   `<body>` and positioned `fixed`, because `.playlist` is `overflow-y: auto` and would clip
   a nested one. Selecting an item just fills the search input and calls `build()` — the
   same path a recent chip takes — so recents/tab-switching stay consistent.
+- **Playlist rows are draggable by press-and-hold** (mouse or finger, `LONG_PRESS_MS`).
+  Three things to keep in mind. (1) *No ghost node or placeholder*: rows are uniform
+  single-line boxes, so `ui.js` translates the held row by the pointer delta and
+  re-inserts it one slot at a time as that delta passes half a row — the DOM order **is**
+  the drop order when the press ends, and `reindexRows()` only has to renumber
+  `data-index` (the visible numbers are a CSS counter). The delta adds the list's
+  `scrollTop` change, or auto-scrolling at the panel edge would slide the row out from
+  under the pointer. (2) *`player.moveTrack(from, to)` owns the consequences*: it splices
+  `queue` **in place** (the UI renders from that same array) and then either follows the
+  list — if the play order was never shuffled, the list *is* the play order, so it stays
+  identity and `pos` moves to the current track's new slot — or, if shuffled, keeps that
+  sequence and only renumbers the indices it points at. Playback never restarts. (3) The
+  hold does double duty: it also starts the row-text scroll, which is how a truncated
+  title is read on touch (hover does it with a mouse). Touch listeners are bound to
+  `.playlist`, not `document`, because the drag needs a **non-passive** `touchmove` to
+  cancel scrolling and a document-level one would deoptimize scrolling page-wide.
 
 ## Deploy
 

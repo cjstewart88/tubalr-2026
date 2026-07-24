@@ -36,6 +36,14 @@ window.Tubalr = window.Tubalr || {};
     return a;
   }
 
+  // True while the play order is still the queue's own order (i.e. never shuffled).
+  function isSequential(a) {
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] !== i) return false;
+    }
+    return true;
+  }
+
   function currentTrack() {
     return queue[order[pos]];
   }
@@ -151,6 +159,40 @@ window.Tubalr = window.Tubalr || {};
     playAt(p, 1);
   }
 
+  // Move a track to a new slot in the queue (the playlist's drag & drop). Whatever
+  // is playing keeps playing, uninterrupted — only where it sits changes.
+  // `queue` is spliced in place because the UI renders from the same array.
+  function moveTrack(from, to) {
+    var n = queue.length;
+    if (!n || from === to) return;
+    if (from < 0 || from >= n || to < 0 || to >= n) return;
+
+    // Where an old queue index lands once `from` is pulled out and reinserted at `to`.
+    function remap(i) {
+      if (i === from) return to;
+      if (from < to) return i > from && i <= to ? i - 1 : i;
+      return i >= to && i < from ? i + 1 : i;
+    }
+
+    var wasSequential = isSequential(order);
+    var currentQi = order[pos];
+    queue.splice(to, 0, queue.splice(from, 1)[0]);
+
+    if (wasSequential) {
+      // Nothing has reordered the play order yet, so it's the list you see —
+      // and dragging a row is a statement about play order. Follow the list and
+      // stay on the track that's playing, wherever it ended up.
+      order = range(n);
+      pos = remap(currentQi);
+    } else {
+      // A shuffled order is its own sequence; a drag rearranges the view, not
+      // what plays next. Renumber the indices it points at and `pos` still means
+      // the same track.
+      order = order.map(remap);
+    }
+    notify();
+  }
+
   function togglePlay() {
     if (!queue.length) return;
     if (playing) youtube.pause();
@@ -243,5 +285,6 @@ window.Tubalr = window.Tubalr || {};
     toggleRepeat: toggleRepeat,
     shuffleQueue: shuffleQueue,
     playByQueueIndex: playByQueueIndex,
+    moveTrack: moveTrack,
   };
 })(window.Tubalr);

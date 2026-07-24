@@ -88,22 +88,275 @@ window.Tubalr = window.Tubalr || {};
     if (isError && msg) showToast(msg);
   }
 
-  function renderPlaylist(queue) {
+  function renderPlaylist(queue, mode) {
     closeRowMenu(); // a new queue must not leave a menu pointing at a dead row
+    finishDrag(false); // ...nor a drag holding a row that's about to be thrown away
     currentQueue = queue;
     els.list.innerHTML = "";
     queue.forEach(function (track, i) {
       var li = document.createElement("li");
-      // Plain text node: the CSS counter (.playlist li::before) and the row's
-      // text-overflow both work off the row's inline content. The kebab below is
-      // absolutely positioned, so it stays out of that flow.
-      li.textContent = track.artist + " – " + track.title;
-      li.title = li.textContent;
+      var label = track.artist + " – " + track.title;
+      // In "only" mode every row is the same artist, so the prefix is dead
+      // weight in a narrow, ellipsized row — show the title alone. The tooltip
+      // below keeps the full label either way.
+      var rowText = mode === "only" ? track.title : label;
+      // .row-text-mask is the flex-sized, clipped viewport between the counter
+      // (.playlist li::before) and the kebab's reserved padding; .row-text
+      // inside it is what hover/long-press slides. Clipping on the mask rather
+      // than the li means the slide can never paint over either neighbor.
+      var mask = document.createElement("span");
+      mask.className = "row-text-mask";
+      var text = document.createElement("span");
+      text.className = "row-text";
+      text.textContent = rowText;
+      mask.appendChild(text);
+      li.title = label;
       li.dataset.index = String(i);
+      li.appendChild(mask);
       li.appendChild(buildRowMenuButton(track, i));
+      bindRowGestures(li);
       els.list.appendChild(li);
     });
     lastCurrent = -1;
+  }
+
+  // ---- Row text scroll: reveal truncated titles on hover / long-press -----
+  // Rows too wide for the panel are ellipsized by default (.playlist li); this
+  // slides the full text left so the tail becomes readable, then loops back.
+  var LONG_PRESS_MS = 450;
+
+  function rowScrollDistance(li) {
+    var mask = li.querySelector(".row-text-mask");
+    var text = li.querySelector(".row-text");
+    if (!mask || !text) return 0;
+    return Math.max(0, text.offsetWidth - mask.clientWidth);
+  }
+
+  function startRowScroll(li) {
+    var dist = rowScrollDistance(li);
+    if (dist <= 0) return; // fits already; nothing to reveal
+    li.style.setProperty("--row-scroll-dist", "-" + dist + "px");
+    li.style.setProperty("--row-scroll-duration", Math.max(2.5, dist / 40 + 1.5) + "s");
+    li.classList.add("scrolling");
+  }
+
+  function stopRowScroll(li) {
+    li.classList.remove("scrolling");
+  }
+
+  // ---- Row gestures: press-and-hold to drag a row to a new slot ---------
+  // One gesture, two payoffs: holding a row lifts it for dragging *and* scrolls
+  // its text, so the hold that reorders the queue is also how you read a
+  // truncated title on touch (hover does that job with a mouse).
+  //
+  // The drag itself needs no ghost element or placeholder. Rows are uniform
+  // single-line boxes, so it runs off one measured row height: the held row is
+  // translated by the pointer delta, and every time that delta passes half a row
+  // the node is re-inserted one slot up or down. The DOM order therefore *is*
+  // the drop order the moment the press ends — all that's left is to tell the
+  // player about it.
+
+  var PRESS_SLOP = 8; // px of movement that turns a hold into a scroll/swipe instead
+  var EDGE = 32; // distance from the list's edge where auto-scroll kicks in
+  var EDGE_SPEED = 10; // px per frame at the very edge
+
+  var press = null; // a hold that hasn't become a drag yet
+  var drag = null; // the active drag, null when idle
+  var suppressClick = false; // the release that ends a drag must not play the row
+
+  function cancelPress() {
+    if (!press) return;
+    clearTimeout(press.timer);
+    press = null;
+  }
+
+  function beginPress(li, clientY, e) {
+    // The kebab is its own control — holding it shouldn't drag the row it sits on.
+    if (drag || e.target.closest(".row-menu")) return;
+    cancelPress();
+    // y0 is the fixed origin the slop is measured against (so a slow drift can't
+    // creep past it); y is where the pointer actually is when the hold lands.
+    press = { li: li, y0: clientY, y: clientY };
+    press.timer = setTimeout(function () {
+      var held = press;
+      press = null;
+      startRowScroll(held.li);
+      beginDrag(held.li, held.y);
+    }, LONG_PRESS_MS);
+  }
+
+  function beginDrag(li, clientY) {
+    closeRowMenu();
+    drag = {
+      li: li,
+      from: Number(li.dataset.index),
+      slots: 0, // rows travelled from the start position, signed
+      rowH: li.offsetHeight || 1,
+      count: els.list.children.length,
+      startY: clientY,
+      pointerY: clientY,
+      startScroll: els.list.scrollTop,
+      raf: 0,
+    };
+    li.classList.add("dragging");
+    document.body.classList.add("row-dragging");
+    if (navigator.vibrate) navigator.vibrate(12); // the row is in hand now
+    drag.raf = requestAnimationFrame(dragFrame);
+  }
+
+  // How far the held row should appear to have travelled: the pointer's own
+  // movement plus any list scrolling underneath it — the row scrolls with the
+  // content, so without that term it would drift out from under the pointer.
+  function dragDelta() {
+    return drag.pointerY - drag.startY + (els.list.scrollTop - drag.startScroll);
+  }
+
+  function shiftDragged(dir) {
+    var li = drag.li;
+    var sibling = dir > 0 ? li.nextElementSibling : li.previousElementSibling;
+    if (!sibling) return;
+    if (dir > 0) els.list.insertBefore(sibling, li);
+    else els.list.insertBefore(li, sibling);
+  }
+
+  // Travel available from the row's *starting* slot, in px, signed like the delta.
+  function dragLimit(dir) {
+    var slots = dir > 0 ? drag.count - 1 - drag.from : -drag.from;
+    return slots * drag.rowH + (dir * drag.rowH) / 2; // half a row of overhang at the end
+  }
+
+  function applyDrag() {
+    // Clamped at both ends, because past the last slot the row has nowhere left
+    // to go and an unclamped translate spills scrollable overflow out the bottom
+    // of the list — which the auto-scroll then chases, growing scrollTop, which
+    // grows the delta, which spills further. That runaway is what made the list
+    // stretch forever and snap back on release.
+    var delta = Math.min(dragLimit(1), Math.max(dragLimit(-1), dragDelta()));
+    var slack = delta - drag.slots * drag.rowH; // how far past its current slot
+    while (slack > drag.rowH / 2 && drag.from + drag.slots < drag.count - 1) {
+      drag.slots++;
+      slack -= drag.rowH;
+      shiftDragged(1);
+    }
+    while (slack < -drag.rowH / 2 && drag.from + drag.slots > 0) {
+      drag.slots--;
+      slack += drag.rowH;
+      shiftDragged(-1);
+    }
+    drag.li.style.transform = "translateY(" + (delta - drag.slots * drag.rowH) + "px)";
+  }
+
+  // One loop for the whole drag: it drives the auto-scroll (dragging against
+  // either edge of the panel pulls the list along, so rows off-screen are
+  // reachable) and re-applies the transform, which has to follow that scrolling
+  // even when the pointer itself is holding still.
+  function dragFrame() {
+    if (!drag) return;
+    var r = els.list.getBoundingClientRect();
+    var past = 0; // how far into an edge band the pointer is, signed
+    if (drag.pointerY > r.bottom - EDGE) past = drag.pointerY - (r.bottom - EDGE);
+    else if (drag.pointerY < r.top + EDGE) past = drag.pointerY - (r.top + EDGE);
+    // Nothing to scroll toward once the row is sitting in the end slot.
+    var at = drag.from + drag.slots;
+    if ((past > 0 && at >= drag.count - 1) || (past < 0 && at <= 0)) past = 0;
+    if (past) {
+      var speed = (Math.min(Math.abs(past), EDGE) / EDGE) * EDGE_SPEED;
+      els.list.scrollTop += past > 0 ? speed : -speed;
+    }
+    applyDrag();
+    drag.raf = requestAnimationFrame(dragFrame);
+  }
+
+  // The rows are the source of truth once a drag lands. The visible "1." numbers
+  // are a CSS counter and fix themselves; the indices the click and kebab
+  // handlers read do not.
+  function reindexRows() {
+    Array.prototype.forEach.call(els.list.children, function (li, i) {
+      li.dataset.index = String(i);
+      var kebab = li.querySelector(".row-menu");
+      if (kebab) kebab.dataset.index = String(i);
+    });
+  }
+
+  function finishDrag(commit) {
+    if (!drag) return;
+    var d = drag;
+    drag = null;
+    cancelAnimationFrame(d.raf);
+    d.li.classList.remove("dragging");
+    d.li.style.transform = "";
+    document.body.classList.remove("row-dragging");
+    // Dropping under a mouse leaves the row hovered, and hovering is its own
+    // reason for the text to keep scrolling — mouseenter won't fire again to
+    // restart it. On touch there's nothing hovering it, so it stops.
+    if (!d.li.matches(":hover")) stopRowScroll(d.li);
+    if (!commit) return; // the caller is replacing these rows wholesale
+    reindexRows();
+    // player.moveTrack splices the same array renderPlaylist drew from, so
+    // currentQueue lines up with the re-indexed rows without being rebuilt, and
+    // the state it notifies with re-highlights the playing row in its new slot.
+    player.moveTrack(d.from, d.from + d.slots);
+  }
+
+  function onPressMove(clientY, e) {
+    if (drag) {
+      drag.pointerY = clientY;
+      // Hold the list (and the page behind it) still while a row is in hand.
+      if (e.cancelable) e.preventDefault();
+      return;
+    }
+    if (!press) return;
+    if (Math.abs(clientY - press.y0) > PRESS_SLOP) cancelPress(); // a scroll, not a hold
+    else press.y = clientY;
+  }
+
+  function onPressEnd(e) {
+    if (drag) {
+      finishDrag(true);
+      suppressClick = true;
+      // Nothing synthesizes a click after a prevented touchend, so clear the
+      // flag on the next tick rather than waiting for a click that may not come.
+      setTimeout(function () { suppressClick = false; }, 0);
+      if (e && e.cancelable) e.preventDefault();
+      return;
+    }
+    cancelPress();
+  }
+
+  function bindRowGestures(li) {
+    li.addEventListener("mouseenter", function () {
+      if (!drag) startRowScroll(li); // rows swept past by a drag stay quiet
+    });
+    li.addEventListener("mouseleave", function () {
+      if (!drag) stopRowScroll(li);
+    });
+    li.addEventListener("mousedown", function (e) {
+      if (e.button === 0) beginPress(li, e.clientY, e);
+    });
+    li.addEventListener("touchstart", function (e) {
+      beginPress(li, e.touches[0].clientY, e);
+    }, { passive: true });
+  }
+
+  // The rest of the gesture is bound once, not per row. A mouse can wander off
+  // the row (and off the list) mid-drag, so those go on the document; a touch
+  // gesture always keeps dispatching to the element it started on, so the list
+  // itself catches every move. Scoping matters here: touchmove must be
+  // non-passive to be cancellable during a drag, and a non-passive listener on
+  // the document would opt the whole page out of fast scrolling to buy it.
+  function bindDragSurface() {
+    document.addEventListener("mousemove", function (e) {
+      if (press || drag) onPressMove(e.clientY, e);
+    });
+    document.addEventListener("mouseup", onPressEnd);
+    els.list.addEventListener("touchmove", function (e) {
+      if (press || drag) onPressMove(e.touches[0].clientY, e);
+    }, { passive: false });
+    els.list.addEventListener("touchend", onPressEnd);
+    els.list.addEventListener("touchcancel", function () {
+      // Drop it where it stands; there's no gesture left to place it any better.
+      onPressEnd(null);
+    });
   }
 
   // ---- Row menu: start a fresh session from any track's artist ----------
@@ -470,7 +723,7 @@ window.Tubalr = window.Tubalr || {};
           setStatus("No results for “" + artist + "”. Check the spelling?", true);
           return;
         }
-        renderPlaylist(queue);
+        renderPlaylist(queue, mode);
         player.start(queue);
         recent.add(artist, mode);
         renderRecent();
@@ -512,6 +765,7 @@ window.Tubalr = window.Tubalr || {};
     });
 
     els.list.addEventListener("click", function (e) {
+      if (suppressClick) return; // the mouseup that dropped a dragged row
       var kebab = e.target.closest(".row-menu");
       if (kebab) {
         // The kebab opens the menu instead of playing the row it sits on.
@@ -568,6 +822,7 @@ window.Tubalr = window.Tubalr || {};
   function init() {
     cacheEls();
     wire();
+    bindDragSurface();
     wireMediaSession();
     renderRecent();
     renderGenreChips();

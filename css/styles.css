@@ -23,6 +23,9 @@
   --field-border: #3a3547;
 
   --panel-w: 264px;
+  /* Strip along the playlist's right edge kept clear of controls, so an overlay
+     scrollbar has somewhere to land that isn't on top of a row's kebab. */
+  --scroll-gutter: 8px;
   --font: "Lucida Grande", "Segoe UI", Tahoma, Verdana, Arial, sans-serif;
   /* The playlist editor's font. Winamp drew its list in a tiny bitmap face; a
      system mono stack is the closest we get without shipping a font file. */
@@ -467,19 +470,44 @@ a { color: inherit; text-decoration: none; }
 .playlist li {
   counter-increment: track;
   position: relative; /* anchors the row's kebab button */
-  padding: 5px 26px 5px 10px; /* right gap so titles ellipsis before the kebab */
+  display: flex; /* counter + text-mask on one line, so the mask's flex-computed
+                    width is exactly the room between them — the hover/long-press
+                    slide (see .row-text-mask below) can never reach under either */
+  align-items: baseline;
+  padding: 5px 34px 5px 10px; /* right gap so titles ellipsis before the kebab */
   color: #cfcfcf;
   cursor: pointer;
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis; /* stays on the li: ::before is inline, not a flex item */
   transition: color 0.12s, background 0.12s;
+  /* Rows are grabbable (see the drag block below), so a press must never start a
+     text selection — or, on iOS, the long-press callout. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
-/* "1. Artist – Title", dimmed like the editor's index column. */
+/* "1. Artist – Title", dimmed like the editor's index column. Flex items
+   (::before included), so it takes its natural width and never shrinks. */
 .playlist li::before {
   content: counter(track) ". ";
   color: #6f6a80;
+  flex: none;
+  white-space: pre;
+}
+
+/* The clipped "viewport" for the row label: takes whatever width flex leaves
+   after the counter and the kebab's reserved padding-right, and clips to
+   exactly that — the boundary the slide animation is confined to. */
+.row-text-mask {
+  flex: 1 1 auto;
+  min-width: 0; /* flexbox truncation gotcha: without this it won't shrink below content size */
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.row-text {
+  display: inline-block;
 }
 
 .playlist li:hover { color: #fff; background: rgba(255, 255, 255, 0.05); }
@@ -497,6 +525,54 @@ a { color: inherit; text-decoration: none; }
 
 .playlist li.pending { color: #8f8f8f; }
 
+/* Hover (desktop) / long-press (touch, see ui.js bindRowScroll) reveals a
+   truncated row: JS measures the overflow against .row-text-mask's width and
+   sets these two custom properties, then toggles .scrolling to run the
+   slide-and-back loop. The slide happens on .row-text, but .row-text-mask's
+   overflow:hidden — not the li's — is what clips it, so it can never reach
+   the counter to its left or the kebab's reserved padding to its right. clip
+   (instead of ellipsis) while scrolling keeps "…" from painting over the
+   sliding tail. */
+.playlist li.scrolling .row-text-mask { text-overflow: clip; }
+
+.playlist li.scrolling .row-text {
+  animation: row-text-scroll var(--row-scroll-duration, 4s) ease-in-out infinite alternate;
+}
+
+@keyframes row-text-scroll {
+  0%, 12% { transform: translateX(0); }
+  88%, 100% { transform: translateX(var(--row-scroll-dist, 0)); }
+}
+
+/* ---------- Row drag & drop ---------- */
+/* Press and hold a row to pick it up (ui.js bindRowGestures), then move it and
+   let go to drop. The held row is the only thing that moves: ui.js translates it
+   under the pointer and re-inserts it a slot at a time, so its neighbours simply
+   sit where they are. It's chiselled proud of the list — the skin's "this is
+   lifted" language, the same bevel a raised button uses. */
+.playlist li.dragging {
+  z-index: 2; /* over its neighbours; li is already position: relative */
+  background: var(--field-bg);
+  color: #fff;
+  cursor: grabbing;
+  box-shadow: var(--bevel-out), 0 6px 16px rgba(0, 0, 0, 0.55);
+  transition: none; /* the transform is driven per-frame; don't lag behind it */
+}
+
+/* Lifting the playing row must not cost it the accent block that marks it. */
+.playlist li.current.dragging {
+  background: var(--accent);
+  color: #14101c;
+}
+
+body.row-dragging { cursor: grabbing; }
+
+/* While a row is in hand the pointer sweeps across the others; leave them alone. */
+body.row-dragging .playlist li:not(.dragging):not(.current):hover {
+  color: #cfcfcf;
+  background: none;
+}
+
 /* ---------- Row kebab + its menu ---------- */
 /* Every row can start a fresh session from its own artist. The kebab is out of
    the row's flow (absolute), so the counter and the title's ellipsis are
@@ -505,7 +581,11 @@ a { color: inherit; text-decoration: none; }
 .row-menu {
   position: absolute;
   top: 0;
-  right: 0;
+  /* Held off the row's right edge: where the scrollbar is an overlay (macOS,
+     touch, Chrome's overlay mode) it floats over the content rather than taking
+     width from it, so a flush kebab sits underneath it and grabs the scrollbar
+     instead of opening. This strip is left to the scrollbar. */
+  right: var(--scroll-gutter);
   width: 22px;
   height: 100%;
   padding: 0;
@@ -658,7 +738,7 @@ body:has(#playlist li) .playlist-col { display: flex; }
 
   /* No hover on touch: the kebab is always shown, and both it and the menu
      items get thumb-sized targets. */
-  .playlist li { padding-right: 40px; }
+  .playlist li { padding-right: 48px; }
   .row-menu { width: 40px; opacity: 0.75; font-size: 16px; }
   .row-action { padding: 11px 10px; }
   .row-actions { min-width: 200px; }
