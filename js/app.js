@@ -40,6 +40,11 @@ window.Tubalr = window.Tubalr || {};
       showConfigBanner();
       Tubalr.ui.setStatus("Add your API keys in js/config.js to get started.", true);
     }
+    // DJ mode: a ?dj=<room> link joins that broadcast as a listener; otherwise
+    // just arm the "go live" button. Both are silent no-ops without Supabase.
+    var room = new URLSearchParams(location.search).get("dj");
+    if (room) Tubalr.live.initListener(room);
+    else Tubalr.live.initDj();
     loadYouTubeApi();
   }
 

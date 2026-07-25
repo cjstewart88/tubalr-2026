@@ -82,6 +82,20 @@
       <div class="player-frame">
         <div id="player"></div>
       </div>
+      <!-- DJ mode (js/live.js): hidden until Supabase is configured; the whole
+           section is already display:none until a session runs, so "go live"
+           only ever appears under an actual player. Sits after .player-frame,
+           never inside it — the frame is overflow:hidden. -->
+      <div class="live-row" id="live-row" hidden>
+        <button type="button" id="btn-go-live" class="btn btn-go-live">go live</button>
+        <div id="live-status" class="live-status" hidden>
+          <span class="live-badge"><span class="live-dot"></span>LIVE</span>
+          <span id="live-count" class="live-count">0 listening</span>
+          <input id="live-url" class="live-url" type="text" readonly aria-label="Broadcast link" />
+          <button type="button" id="btn-copy-live" class="btn btn-live-sm">copy</button>
+          <button type="button" id="btn-end-live" class="btn btn-live-sm">end</button>
+        </div>
+      </div>
     </section>
   </main>
 
@@ -144,6 +158,8 @@
   <script src="js/recent.js"></script>
   <script src="js/genres.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/creatures.js"></script>
+  <script src="js/live.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

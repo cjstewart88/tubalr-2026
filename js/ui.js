@@ -173,6 +173,9 @@ window.Tubalr = window.Tubalr || {};
   }
 
   function beginPress(li, clientY, e) {
+    // Listeners in DJ mode can't reorder the DJ's queue (player.moveTrack would
+    // no-op anyway; skipping the lift avoids a drag that snaps back).
+    if (document.body.classList.contains("listener")) return;
     // The kebab is its own control — holding it shouldn't drag the row it sits on.
     if (drag || e.target.closest(".row-menu")) return;
     cancelPress();
@@ -691,7 +694,9 @@ window.Tubalr = window.Tubalr || {};
   function onChange(state) {
     // A reshuffle reorders the queue in place; redraw the rows so the visible list
     // matches the new order (the normal path only re-highlights the playing row).
-    if (state.reordered) renderPlaylist(state.queue, currentMode);
+    // state.mode is set when the queue is remote (DJ-mode follow); a local
+    // reshuffle keeps rendering in whatever mode the list was built in.
+    if (state.reordered) renderPlaylist(state.queue, state.mode || currentMode);
     highlightCurrent(state.currentIndex);
     reflectPlaying(state.playing);
     reflectRepeat(state.repeatMode);
@@ -765,6 +770,9 @@ window.Tubalr = window.Tubalr || {};
 
     els.list.addEventListener("click", function (e) {
       if (suppressClick) return; // the mouseup that dropped a dragged row
+      // Listeners can't jump tracks; skipping here avoids dead-feeling clicks
+      // (the player guard is the backstop, the kebab is hidden by CSS).
+      if (document.body.classList.contains("listener")) return;
       var kebab = e.target.closest(".row-menu");
       if (kebab) {
         // The kebab opens the menu instead of playing the row it sits on.
@@ -828,5 +836,7 @@ window.Tubalr = window.Tubalr || {};
     player.init({ onChange: onChange, onStatus: setStatus });
   }
 
-  Tubalr.ui = { init: init, setStatus: setStatus };
+  // toast: non-error notices too (DJ mode uses it for "broadcast ended" etc.);
+  // setStatus stays errors-only.
+  Tubalr.ui = { init: init, setStatus: setStatus, toast: showToast };
 })(window.Tubalr);

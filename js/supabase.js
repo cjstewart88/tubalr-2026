@@ -51,4 +51,10 @@ window.Tubalr = window.Tubalr || {};
     getCachedVideoId: getCachedVideoId,
     cacheVideoId: cacheVideoId,
   };
+
+  // The raw client (or null when unconfigured), for features beyond the video
+  // cache — DJ mode's Realtime channels live off this same client/websocket.
+  Tubalr.supa = {
+    getClient: getClient,
+  };
 })(window.Tubalr);

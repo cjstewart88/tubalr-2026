@@ -675,6 +675,297 @@ body:has(#playlist li) .playlist-col { display: flex; }
   border-radius: 3px;
 }
 
+/* ---------- DJ mode (js/live.js + js/creatures.js) ---------- */
+
+/* The creature layer paints behind the UI: it's a fixed layer at z-index 1, so
+   the static-flow surfaces need their own stacking contexts above it. Fixed
+   chrome already stacks higher (.playlist-col 900, .row-actions 950, .toast
+   1000, .join-overlay 1100). Creatures end up above the page background but
+   under everything you can read or press. */
+.stage { position: relative; z-index: 2; }
+.config-banner { position: relative; z-index: 2; }
+
+/* Row under the player: the "go live" button, swapped for the live status
+   cluster once broadcasting. Hidden entirely when Supabase isn't configured. */
+.live-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}
+.live-row[hidden] { display: none; }
+
+.btn-go-live {
+  color: var(--accent);
+  font: 12px var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.live-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+}
+.live-status[hidden] { display: none; }
+
+/* The on-air lamp: accent ink on an accent wash, chiselled like everything
+   else, with a slow-pulsing dot. Shared by the DJ row and the listener bar. */
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  color: var(--accent);
+  font: 11px var(--font-mono);
+  letter-spacing: 0.08em;
+  background: rgba(var(--accent-rgb), 0.12);
+  border: 1px solid var(--field-border);
+  border-radius: 2px;
+  box-shadow: var(--bevel-out);
+}
+
+.live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px 1px rgba(var(--accent-rgb), 0.7);
+  animation: live-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.live-count {
+  color: var(--text);
+  font: 11px var(--font-mono);
+  white-space: nowrap;
+}
+
+/* The shareable link: a sunken field like the search input, ellipsized. */
+.live-url {
+  flex: 1 1 120px;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  color: var(--text-strong);
+  font: 11px var(--font-mono);
+  background: var(--field-bg);
+  border: 1px solid var(--field-border);
+  border-radius: 2px;
+  box-shadow: var(--bevel-in);
+  outline: none;
+  text-overflow: ellipsis;
+}
+
+.btn-live-sm {
+  height: 28px;
+  min-width: 0;
+  padding: 0 10px;
+  font-size: 11px;
+}
+
+/* What a listener sees under the player instead of the go-live row. */
+.listener-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 7px 10px;
+  background: rgba(var(--accent-rgb), 0.07);
+  border: 1px solid var(--field-border);
+  border-radius: 2px;
+  box-shadow: var(--bevel-out);
+}
+
+/* Full-screen gate a broadcast link lands on: unmuted playback needs a click,
+   so nothing plays until "join the broadcast" is pressed. Above the toast. */
+.join-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(19, 16, 25, 0.9);
+}
+
+.join-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  max-width: 340px;
+  padding: 28px;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--field-border);
+  border-radius: 2px;
+  box-shadow: var(--bevel-out), 0 12px 32px rgba(0, 0, 0, 0.6);
+}
+
+.join-text {
+  margin: 0;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+/* Also worn by the "go to tubalr" link when the room is dead, hence the flex
+   centering (an <a> has no button UA centering to lean on). */
+.btn-join {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 22px;
+  color: var(--accent);
+  font-size: 14px;
+}
+
+/* ---------- Creatures ---------- */
+
+/* The layer itself: click-through and unclipped; each creature is translated
+   from the bottom-left corner (see creatures.js place()). */
+#creatures {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.creature {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 24px;
+  will-change: transform;
+}
+
+/* A chiselled little blob: per-user colour, front-loaded pixel eyes (one
+   pseudo, second eye via box-shadow), facing flipped through --facing so the
+   bob animation below can compose with it instead of stomping it. */
+.creature-body {
+  position: relative;
+  width: 24px;
+  height: 20px;
+  background: var(--creature-color, #7fd6a4);
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  border-radius: 8px 8px 4px 4px;
+  box-shadow: var(--bevel-out);
+  transform: scaleX(var(--facing, 1));
+}
+
+.creature-body::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 11px;
+  width: 4px;
+  height: 4px;
+  border-radius: 1px;
+  background: #14101c;
+  box-shadow: 6px 0 0 0 #14101c;
+}
+
+.creature.idle .creature-body {
+  animation: creature-bob 1.6s ease-in-out infinite;
+}
+
+@keyframes creature-bob {
+  0%, 100% { transform: translateY(0) scaleX(var(--facing, 1)); }
+  50% { transform: translateY(-2px) scaleX(var(--facing, 1)); }
+}
+
+/* The DJ's creature glows the accent and wears a little broadcast bulb. */
+.creature.is-dj .creature-body {
+  background: var(--accent);
+  box-shadow: var(--bevel-out), 0 0 12px 2px rgba(var(--accent-rgb), 0.55);
+}
+
+.creature.is-dj .creature-body::after {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: 9px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 8px 2px rgba(var(--accent-rgb), 0.8);
+}
+
+/* Ephemeral chat bubble above the head; creatures.js sets textContent and
+   hides it again after a few seconds. */
+.creature-bubble {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 180px;
+  padding: 6px 9px;
+  color: var(--text-strong);
+  font: 11px/1.4 var(--font);
+  text-align: center;
+  overflow-wrap: break-word;
+  background: var(--surface);
+  border: 1px solid var(--field-border);
+  border-radius: 2px;
+  box-shadow: var(--bevel-out), 0 6px 16px rgba(0, 0, 0, 0.5);
+}
+.creature-bubble[hidden] { display: none; }
+
+.creature-bubble::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -4px;
+  border: 4px solid transparent;
+  border-top-color: var(--field-border);
+}
+
+/* The chat box (bottom-left, its own element so the layer stays click-through).
+   Enter focuses it when nothing else has focus; Escape blurs. */
+.creature-chat {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  z-index: 2;
+  display: flex;
+  gap: 6px;
+}
+
+.creature-chat input {
+  width: 180px;
+  height: 30px;
+  padding: 0 10px;
+  color: var(--text-strong);
+  font: 12px var(--font);
+  background: var(--field-bg);
+  border: 1px solid var(--field-border);
+  border-radius: 2px;
+  box-shadow: var(--bevel-in);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.creature-chat input:focus { border-color: var(--accent); }
+
+.creature-chat .btn {
+  height: 30px;
+  min-width: 0;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
 /* ---------- Responsive: dock the panel below on narrow screens ---------- */
 @media (max-width: 860px) {
   .playlist-col {
@@ -820,4 +1111,35 @@ body:has(#playlist li) .playlist-col { display: flex; }
              max(8px, env(safe-area-inset-bottom))
              max(8px, env(safe-area-inset-left));
   }
+
+  /* Chat box clears the pinned transport bar, same as the toast above. */
+  .creature-chat { bottom: calc(72px + env(safe-area-inset-bottom)); }
+}
+
+/* ---------- DJ mode: listener lockdown ----------
+   Last in the file so these win specificity ties against the app-shell rules.
+   A listener follows the DJ's session: no searching, no rebuilding, no queue
+   surgery — the transport keeps only play/pause (pause is local; unpause snaps
+   back to the DJ). The player-side guards make these cosmetic, not load-bearing. */
+body.listener .search,
+body.listener .hint,
+body.listener .recent,
+body.listener .genre-chips,
+body.listener #tab-recent,
+body.listener .row-menu,
+body.listener #btn-shuffle,
+body.listener #btn-prev,
+body.listener #btn-next,
+body.listener #btn-repeat,
+body.listener #live-row { display: none; }
+
+body.listener .playlist li {
+  cursor: default;
+  padding-right: 10px; /* no kebab to reserve room for */
+}
+
+/* The phone app-shell header keeps its height from the search row; with search
+   hidden for listeners, hold room for the absolutely-placed brand icon. */
+@media (max-width: 600px) {
+  body.listener:has(#playlist li) .stage { min-height: 68px; }
 }

@@ -46,10 +46,15 @@ Load order and responsibilities:
    lazy video resolution, auto-advance, shuffle, play/pause). Talks to `youtube` for
    playback, reports state to the UI via `init({ onChange, onStatus })`.
 7. `js/ui.js` — `Tubalr.ui`: DOM rendering + event wiring; also drives the error toast
-   (the only status surface, on every viewport — transient loading messages are dropped)
-   and the Media Session (lock-screen) metadata + action handlers.
-8. `js/app.js` — bootstrap: config check + missing-key banner, loads the IFrame API,
-   tears down the old service worker (see below).
+   (the only status surface, on every viewport — transient loading messages are dropped;
+   `Tubalr.ui.toast` shows non-error notices) and the Media Session (lock-screen)
+   metadata + action handlers.
+8. `js/creatures.js` — `Tubalr.creatures`: DJ mode's avatar layer (see the DJ mode
+   section). Pure presentation, knows nothing about Supabase.
+9. `js/live.js` — `Tubalr.live`: DJ mode's broadcast/sync layer over Supabase Realtime
+   (`initDj`/`initListener`).
+10. `js/app.js` — bootstrap: config check + missing-key banner, `?dj=` routing into
+    `Tubalr.live`, loads the IFrame API.
 
 Non-script static files: `icons/` (favicon-32 = tab icon, icon-192 = mobile header logo,
 icon-512 = Media Session artwork) and `tools/icon-generator.html` (a standalone icon
@@ -145,6 +150,54 @@ Data flow: `ui` → `playlist` (Last.fm) → `player.start(queue)` → `player` 
   title is read on touch (hover does it with a mouse). Touch listeners are bound to
   `.playlist`, not `document`, because the drag needs a **non-passive** `touchmove` to
   cancel scrolling and a document-level one would deoptimize scrolling page-wide.
+
+## DJ mode (issue #3)
+
+"go live" under the player broadcasts the session; a `?dj=<room>` link joins it as a
+listener. Built on **Supabase Realtime Broadcast + Presence** — tableless channels
+(`dj:<roomId>`), so no schema and no new config keys; like the shared cache it
+silently no-ops when Supabase isn't configured. Things to preserve:
+
+- **Protocol** (see the header comment in `js/live.js`): the DJ sends full-state
+  `state` broadcasts `{ seq, queue, currentIndex, playing, repeatMode, currentTime,
+  sentAt }` — debounced 150ms after every player notify, every 5s as a heartbeat, and
+  on presence joins (instant late-joiner sync). `end`, `move`, `chat` are the other
+  events; presence carries only static identity (`{ role, color }`). **Movement goes
+  over broadcast at ≤5 Hz, not presence** — `track()` fans out CRDT diffs and
+  supabase-js caps a client at 10 events/sec, so don't raise the rate or move
+  positions into presence.
+- **Listeners never call YouTube search** (quota!). The current track's `videoId`
+  always arrives resolved — the DJ resolved it to play it — and
+  `player.applyRemoteState` never searches or prefetches. Keep it that way.
+- **Follow mode lives in `player.js`**, not a parallel state machine: `setFollowMode`
+  makes the transport inert (except play/pause), `applyRemoteState` mirrors DJ state
+  through the same `notify()`/`onChange` pipeline the UI already renders from, and
+  `setStateHook` is the tap live.js uses (DJ: broadcast on change; listener: detect
+  local pause vs DJ pause — a pause while `lastState.playing` is local). Unpausing a
+  listener re-applies the DJ's latest state (jumps to their current spot, per spec) —
+  it must not just resume. Time extrapolation uses the *listener-local* `receivedAt`
+  stamp, never `sentAt` arithmetic across machines (clock skew). Drift reseeks only
+  happen on incoming states with a 4s tolerance — no continuous scrubbing.
+- **Autoplay gate**: a listener link shows a join overlay; the "join the broadcast"
+  click is the user gesture playback needs, and `applyRemoteState` runs synchronously
+  in that handler. Don't auto-join on load.
+- **Stream-end detection is layered**: explicit `end` broadcast, presence-leave of the
+  DJ + 8s grace (cancelled on rejoin), and a 15s heartbeat-staleness watchdog.
+  Release hands the listener the queue as a normal session (full controls back).
+- **Creatures render behind the UI**: `#creatures` is a fixed, `pointer-events: none`
+  layer at `z-index: 1`; `.stage`/`.config-banner` get `position: relative; z-index: 2`
+  so static content stacks above it (fixed chrome already does: panel 900, kebab menu
+  950, toast 1000, join overlay 1100). Creature facing flips via the `--facing` custom
+  property so the idle-bob keyframes can compose `scaleX(var(--facing))` — an inline
+  transform would be stomped by the animation. Creatures are pure CSS (CSP `img-src
+  'self'` forbids data-URI sprites). Keyboard is ignored while focus is in an
+  input/interactive element; Enter focuses the chat box. Chat renders via
+  `textContent` only, clamped to 120 chars on send *and* receive.
+- **`beforeunload` shows generic browser text only** — the "ends your stream" wording
+  can't be customized; that's a platform limit.
+- Known v1 limitation: on the ≤600px app shell the phone user barely sees their own
+  creature (the shell covers the viewport); others still see it, and the chat box is
+  the phone's participation surface.
 
 ## Deploy
 

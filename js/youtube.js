@@ -109,9 +109,10 @@ window.Tubalr = window.Tubalr || {};
     else readyWaiters.push(fn);
   }
 
-  function load(videoId) {
+  function load(videoId, startSeconds) {
     whenReady(function () {
-      player.loadVideoById(videoId);
+      if (startSeconds > 0) player.loadVideoById(videoId, startSeconds);
+      else player.loadVideoById(videoId);
     });
   }
 
@@ -134,6 +135,18 @@ window.Tubalr = window.Tubalr || {};
     if (ready && player) player.pauseVideo();
   }
 
+  function seekTo(seconds) {
+    whenReady(function () {
+      player.seekTo(seconds, true);
+    });
+  }
+
+  // Synchronous; 0 before the player is ready or a video is loaded.
+  function getCurrentTime() {
+    if (!ready || !player || !player.getCurrentTime) return 0;
+    return player.getCurrentTime() || 0;
+  }
+
   function setHandlers(h) {
     handlers = Object.assign(handlers, h);
   }
@@ -146,6 +159,8 @@ window.Tubalr = window.Tubalr || {};
     play: play,
     replay: replay,
     pause: pause,
+    seekTo: seekTo,
+    getCurrentTime: getCurrentTime,
     setHandlers: setHandlers,
   };
 })(window.Tubalr);
