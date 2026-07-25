@@ -1,18 +1,22 @@
 // DJ-mode creature layer: every participant in a broadcast appears as a little
 // digital creature on a fixed, click-through layer that paints *behind* the UI
-// chrome (see #creatures + the stacking notes in styles.css). Pure presentation —
-// this module knows nothing about Supabase; live.js feeds it remote positions and
-// chat via spawn/applyMove/showChat/remove and receives the local creature's
-// movement/chat through the onMove/onChat callbacks passed to start().
+// (see #creatures + the stacking notes in styles.css) — the video/app always
+// stays on top. The whole viewport is the creature's playground: it floats
+// freely in 2D, steered by WASD/arrows or by clicking/tapping any dead spot to
+// glide straight to that point; space does a little hop from wherever it is.
+// Pure presentation — this module knows nothing about Supabase; live.js feeds
+// it remote positions and chat via spawn/applyMove/showChat/remove and receives
+// the local creature's movement/chat through the onMove/onChat callbacks.
 window.Tubalr = window.Tubalr || {};
 
 (function (Tubalr) {
   "use strict";
 
-  var GROUND = 10; // px above the viewport bottom the creatures walk on
-  var WALK_SPEED = 220; // px/s
-  var JUMP_V = 560; // px/s upward
-  var GRAVITY = 1500; // px/s²
+  var BASE = 10; // px inset from the viewport bottom the y axis measures from
+  var SIZE = 24; // creature footprint, for clamping inside the viewport
+  var MOVE_SPEED = 220; // px/s, keys and click-glides alike
+  var HOP_V = 300; // px/s upward; ~30px hop at this gravity
+  var HOP_GRAVITY = 1500; // px/s²
   var MOVE_SEND_MS = 200; // 5 Hz — stays clear of supabase-js's 10 events/sec cap
   var BUBBLE_MS = 6000; // chat bubbles are ephemeral; no history
   var CHAT_MAX = 120;
@@ -20,16 +24,24 @@ window.Tubalr = window.Tubalr || {};
   var layer = null; // #creatures, lazily created
   var chatForm = null;
   var chatInput = null;
-  var creatures = {}; // id -> { el, bodyEl, bubbleEl, x, y, facing, isSelf, ... }
+  var creatures = {}; // id -> { el, bubbleEl, x, y, facing, isSelf, ... }
   var selfId = null;
   var cbs = { onMove: function () {}, onChat: function () {} };
-  var keys = { left: false, right: false, jump: false };
-  var clickTarget = null; // { x, jump } — click/tap-to-walk destination
+  var keys = { left: false, right: false, up: false, down: false, hop: false };
+  var clickTarget = null; // { x, y } — click/tap destination being glided to
   var raf = 0;
   var lastFrame = 0;
   var lastSend = 0;
   var restSent = true; // the one extra packet after motion stops has gone out
   var bubbleTimers = {};
+
+  function maxX() {
+    return window.innerWidth - SIZE;
+  }
+
+  function maxY() {
+    return window.innerHeight - BASE - SIZE;
+  }
 
   function ensureLayer() {
     if (layer) return;
@@ -57,9 +69,8 @@ window.Tubalr = window.Tubalr || {};
 
     var c = {
       el: el,
-      bodyEl: body,
       bubbleEl: bubble,
-      // x in px from the left edge, y in px above the ground line
+      // x from the left edge, y up from the BASE line above the bottom — both px
       x: (0.2 + Math.random() * 0.6) * window.innerWidth,
       y: 0,
       targetX: 0,
@@ -67,7 +78,8 @@ window.Tubalr = window.Tubalr || {};
       facing: 1,
       vx: 0,
       vy: 0,
-      grounded: true,
+      hopH: 0, // the hop rides on top of y, so a hop mid-glide arcs naturally
+      hopV: 0,
       isSelf: !!isSelf,
     };
     c.targetX = c.x;
@@ -79,7 +91,7 @@ window.Tubalr = window.Tubalr || {};
     // Position via transform only; the base spot is the layer's bottom-left.
     // Facing goes through a custom property (not an inline transform) so the
     // idle-bob keyframes can compose scaleX(var(--facing)) without stomping it.
-    c.el.style.transform = "translate(" + c.x + "px, " + -(GROUND + c.y) + "px)";
+    c.el.style.transform = "translate(" + c.x + "px, " + -(BASE + c.y + c.hopH) + "px)";
     c.el.style.setProperty("--facing", String(c.facing));
   }
 
@@ -108,7 +120,9 @@ window.Tubalr = window.Tubalr || {};
     var k = e.key;
     if (k === "a" || k === "A" || k === "ArrowLeft") return "left";
     if (k === "d" || k === "D" || k === "ArrowRight") return "right";
-    if (k === "w" || k === "W" || k === "ArrowUp" || k === " ") return "jump";
+    if (k === "w" || k === "W" || k === "ArrowUp") return "up";
+    if (k === "s" || k === "S" || k === "ArrowDown") return "down";
+    if (k === " ") return "hop";
     return null;
   }
 
@@ -132,7 +146,7 @@ window.Tubalr = window.Tubalr || {};
     if (dir) keys[dir] = false;
   }
 
-  // ---- click/tap-to-walk (the only movement a phone gets) ----
+  // ---- click/tap-to-glide (the only movement a phone gets) ----
   // The layer itself is pointer-events: none, so clicks land on the page;
   // listen on the document and take only the ones that hit dead space — a
   // click on anything interactive (or on the opaque panel the creatures walk
@@ -141,18 +155,15 @@ window.Tubalr = window.Tubalr || {};
     "button, a, input, textarea, select, form, li, iframe, " +
     ".playlist-col, .row-actions, .toast, .join-overlay, .config-banner, " +
     ".listener-bar, .live-row, .brand";
-  var CLICK_JUMP_H = 40; // clicks this far above the ground order a hop
 
   function onDocClick(e) {
     if (e.defaultPrevented) return;
     if (e.target.closest && e.target.closest(CLICK_IGNORE)) return;
-    var self = creatures[selfId];
-    if (!self) return;
-    // Aim the creature's center at the click; a click up in the air means
-    // "walk there, then jump" (a click right above it hops on the spot).
+    if (!creatures[selfId]) return;
+    // The viewport is the grid: aim the creature's center at the exact point.
     clickTarget = {
-      x: Math.min(window.innerWidth - 24, Math.max(0, e.clientX - 12)),
-      jump: window.innerHeight - e.clientY - GROUND > CLICK_JUMP_H,
+      x: Math.min(maxX(), Math.max(0, e.clientX - SIZE / 2)),
+      y: Math.min(maxY(), Math.max(0, window.innerHeight - BASE - SIZE / 2 - e.clientY)),
     };
   }
 
@@ -171,7 +182,7 @@ window.Tubalr = window.Tubalr || {};
       // Ease toward the last received spot; 5 Hz packets look continuous.
       c.x += (c.targetX - c.x) * Math.min(1, dt * 10);
       c.y += (c.targetY - c.y) * Math.min(1, dt * 10);
-      setIdle(c, Math.abs(c.targetX - c.x) < 1 && Math.abs(c.targetY - c.y) < 1 && c.targetY === 0);
+      setIdle(c, Math.abs(c.targetX - c.x) < 1 && Math.abs(c.targetY - c.y) < 1);
       place(c);
     }
 
@@ -179,56 +190,61 @@ window.Tubalr = window.Tubalr || {};
   }
 
   function stepSelf(c, dt, now) {
-    var keyVx = (keys.right ? WALK_SPEED : 0) - (keys.left ? WALK_SPEED : 0);
-    if (keyVx) clickTarget = null; // hands on the keys override a click-walk
+    var kx = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+    var ky = (keys.up ? 1 : 0) - (keys.down ? 1 : 0);
+    if (kx || ky) clickTarget = null; // hands on the keys override a click-glide
 
     if (clickTarget) {
       var dx = clickTarget.x - c.x;
-      if (Math.abs(dx) <= WALK_SPEED * dt) {
-        // Arrived: snap to the spot (no overshoot oscillation) and cash in
-        // the hop if the click was up in the air.
+      var dy = clickTarget.y - c.y;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      var step = MOVE_SPEED * dt;
+      if (dist <= step) {
+        // Arrived: snap to the spot (no overshoot oscillation).
         c.x = clickTarget.x;
+        c.y = clickTarget.y;
         c.vx = 0;
-        if (clickTarget.jump && c.grounded) {
-          c.vy = JUMP_V;
-          c.grounded = false;
-        }
+        c.vy = 0;
         clickTarget = null;
       } else {
-        c.vx = dx > 0 ? WALK_SPEED : -WALK_SPEED;
+        c.vx = (dx / dist) * MOVE_SPEED;
+        c.vy = (dy / dist) * MOVE_SPEED;
       }
     } else {
-      c.vx = keyVx;
+      c.vx = kx * MOVE_SPEED;
+      c.vy = ky * MOVE_SPEED;
     }
 
-    if (keys.jump && c.grounded) {
-      c.vy = JUMP_V;
-      c.grounded = false;
-    }
-    if (!c.grounded) {
-      c.vy -= GRAVITY * dt;
-      c.y += c.vy * dt;
-      if (c.y <= 0) {
-        c.y = 0;
-        c.vy = 0;
-        c.grounded = true;
+    // The hop is a cosmetic bounce layered on top of wherever the creature is
+    // (or is heading) — no gravity pulls the resting position anywhere.
+    if (keys.hop && c.hopH === 0 && c.hopV === 0) c.hopV = HOP_V;
+    if (c.hopH > 0 || c.hopV > 0) {
+      c.hopV -= HOP_GRAVITY * dt;
+      c.hopH += c.hopV * dt;
+      if (c.hopH <= 0) {
+        c.hopH = 0;
+        c.hopV = 0;
       }
     }
+
     if (c.vx) c.facing = c.vx > 0 ? 1 : -1;
-    c.x = Math.min(window.innerWidth - 24, Math.max(0, c.x + c.vx * dt));
-    setIdle(c, c.grounded && !c.vx);
+    c.x = Math.min(maxX(), Math.max(0, c.x + c.vx * dt));
+    c.y = Math.min(maxY(), Math.max(0, c.y + c.vy * dt));
+    setIdle(c, !c.vx && !c.vy && !c.hopH);
     place(c);
 
-    var moving = c.vx !== 0 || !c.grounded;
+    var moving = c.vx !== 0 || c.vy !== 0 || c.hopH > 0;
     if (moving) restSent = false;
     if ((moving || !restSent) && now - lastSend >= MOVE_SEND_MS) {
       lastSend = now;
       if (!moving) restSent = true;
       cbs.onMove({
-        x: c.x / window.innerWidth, // fraction, so viewport sizes don't matter
-        y: Math.round(c.y),
+        // Fractions of the viewport, so different window sizes agree on where
+        // "the same spot" is. The hop rides along in y so remotes see the arc.
+        x: c.x / window.innerWidth,
+        y: (c.y + c.hopH) / window.innerHeight,
         d: c.facing,
-        j: !c.grounded,
+        j: c.hopH > 0,
       });
     }
   }
@@ -299,7 +315,7 @@ window.Tubalr = window.Tubalr || {};
     bubbleTimers = {};
     creatures = {};
     selfId = null;
-    keys.left = keys.right = keys.jump = false;
+    keys.left = keys.right = keys.up = keys.down = keys.hop = false;
     if (layer) {
       layer.remove();
       layer = null;
@@ -320,8 +336,8 @@ window.Tubalr = window.Tubalr || {};
     if (!id || id === selfId || !data) return;
     var c = creatures[id] || null;
     if (!c) return; // presence spawn hasn't landed yet; next packet will find it
-    c.targetX = (data.x || 0) * window.innerWidth;
-    c.targetY = Math.max(0, data.y || 0);
+    c.targetX = Math.min(maxX(), Math.max(0, (data.x || 0) * window.innerWidth));
+    c.targetY = Math.min(maxY(), Math.max(0, (data.y || 0) * window.innerHeight));
     if (data.d) c.facing = data.d < 0 ? -1 : 1;
   }
 
