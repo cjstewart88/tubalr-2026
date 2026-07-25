@@ -81,6 +81,12 @@
     <section class="now-playing">
       <div class="player-frame">
         <div id="player"></div>
+        <!-- Shown while paused: YouTube's pause overlay ("More videos") can't
+             be disabled via player params and lives inside the cross-origin
+             iframe, so we cover it. Clicking the cover resumes. -->
+        <button type="button" id="player-cover" class="player-cover" hidden aria-label="Play">
+          <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+        </button>
       </div>
       <!-- DJ mode (js/live.js): hidden until Supabase is configured; the whole
            section is already display:none until a session runs, so "go live"
