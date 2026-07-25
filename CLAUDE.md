@@ -45,15 +45,17 @@ Load order and responsibilities:
 6. `js/player.js` — `Tubalr.player`: the transport/queue state machine (play order,
    lazy video resolution, auto-advance, shuffle, play/pause). Talks to `youtube` for
    playback, reports state to the UI via `init({ onChange, onStatus })`.
-7. `js/ui.js` — `Tubalr.ui`: DOM rendering + event wiring; also drives the error toast
+7. `js/hats.js` — `Tubalr.hats`: coins + hat wallet (see the DJ mode section). Pure
+   localStorage state + a 20-hat catalog; no network.
+8. `js/ui.js` — `Tubalr.ui`: DOM rendering + event wiring; also drives the error toast
    (the only status surface, on every viewport — transient loading messages are dropped;
    `Tubalr.ui.toast` shows non-error notices) and the Media Session (lock-screen)
    metadata + action handlers.
-8. `js/creatures.js` — `Tubalr.creatures`: DJ mode's avatar layer (see the DJ mode
+9. `js/creatures.js` — `Tubalr.creatures`: DJ mode's avatar layer (see the DJ mode
    section). Pure presentation, knows nothing about Supabase.
-9. `js/live.js` — `Tubalr.live`: DJ mode's broadcast/sync layer over Supabase Realtime
-   (`initDj`/`initListener`).
-10. `js/app.js` — bootstrap: config check + missing-key banner, `?dj=` routing into
+10. `js/live.js` — `Tubalr.live`: DJ mode's broadcast/sync layer over Supabase Realtime
+    (`initDj`/`initListener`).
+11. `js/app.js` — bootstrap: config check + missing-key banner, `?dj=` routing into
     `Tubalr.live`, loads the IFrame API.
 
 Non-script static files: `icons/` (favicon-32 = tab icon, icon-192 = mobile header logo,
@@ -229,6 +231,19 @@ silently no-ops when Supabase isn't configured. Things to preserve:
   pending click-glide. Keyboard is ignored while focus is in an input/interactive
   element; Enter focuses the chat box. Chat renders via `textContent` only, clamped
   to 120 chars on send *and* receive.
+- **Coins + hats** (`js/hats.js`): finishing a track awards coins — the single hook is
+  the top of the player's `onEnded`, *before* the follow-mode guard so listeners earn
+  too. Balance/owned/equipped live in localStorage (`tubalr:coins`, `tubalr:hats-owned`,
+  `tubalr:hat`); the "hats" button + shop panel (built in creatures.js above the chat
+  box) are DJ-mode-only but earning works in any session. Hats are **pure CSS**
+  (`.hat-<id>` draws each from one div + its pseudos; shop previews reuse the exact
+  same markup scaled up) and travel the network as **catalog ids in presence**
+  (`{ role, color, hat }`) — every remote id passes `hats.isValid()` before becoming a
+  class, and `onPresenceSync` applies `creatures.setHat` to already-spawned creatures
+  since `spawn` is idempotent. live.js re-`track()`s presence **only on an actual hat
+  change**: `hats.onChange` also fires on every coin award (each finished track), so
+  the diff check in `watchHat` is what keeps presence updates rare — don't remove it.
+  Hats cost zero YouTube quota and no Supabase schema.
 - **`beforeunload` shows generic browser text only** — the "ends your stream" wording
   can't be customized; that's a platform limit.
 - Known v1 limitation: on the ≤600px app shell the phone user barely sees their own

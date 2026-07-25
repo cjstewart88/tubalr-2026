@@ -40,6 +40,7 @@ window.Tubalr = window.Tubalr || {};
   var lastLocalPlaying = false; // edge detector for pause/resume via the iframe itself
   var heartbeatTimer = null;
   var sendTimer = null;
+  var hatUnsub = null; // re-announce presence when the equipped hat changes
   var graceTimer = null;
   var staleTimer = null;
   var joinTimer = null;
@@ -122,11 +123,38 @@ window.Tubalr = window.Tubalr || {};
     Object.keys(state).forEach(function (key) {
       var meta = state[key][0] || {};
       if (meta.role === "listener") listeners++;
-      if (key !== clientId) Tubalr.creatures.spawn(key, meta);
+      if (key !== clientId) {
+        Tubalr.creatures.spawn(key, meta); // idempotent — no-op once spawned
+        Tubalr.creatures.setHat(key, meta.hat); // but hats can change mid-session
+      }
     });
     var label = listeners + " listening";
     if (els.count) els.count.textContent = label;
     if (els.barCount) els.barCount.textContent = label;
+  }
+
+  // Presence carries static identity plus the equipped hat id. Re-tracking
+  // replaces our meta and re-fires everyone's presence sync, which is how a
+  // mid-session hat change propagates (onPresenceSync applies it via setHat).
+  function trackPresence() {
+    if (!channel) return;
+    var payload =
+      role === "dj" ? { role: "dj", color: DJ_COLOR } : { role: "listener", color: myColor() };
+    if (Tubalr.hats) payload.hat = Tubalr.hats.getEquipped();
+    channel.track(payload).then(function () {}, function () {});
+  }
+
+  // hats.onChange also fires on every coin award (each finished track), so only
+  // an actual hat change re-tracks — presence updates stay rare.
+  function watchHat() {
+    if (!Tubalr.hats || hatUnsub) return;
+    var lastHat = Tubalr.hats.getEquipped();
+    hatUnsub = Tubalr.hats.onChange(function () {
+      var h = Tubalr.hats.getEquipped();
+      if (h === lastHat) return;
+      lastHat = h;
+      trackPresence();
+    });
   }
 
   function hasDj() {
@@ -196,7 +224,8 @@ window.Tubalr = window.Tubalr || {};
       onChat: sendChat,
     });
     Tubalr.creatures.poke(); // tell the room where we spawned
-    channel.track({ role: "dj", color: DJ_COLOR }).then(function () {}, function () {});
+    trackPresence();
+    watchHat();
     Tubalr.player.setStateHook(queueStateSend);
     heartbeatTimer = setInterval(sendState, HEARTBEAT_MS);
     window.addEventListener("beforeunload", confirmLeave);
@@ -406,7 +435,8 @@ window.Tubalr = window.Tubalr || {};
     Tubalr.player.applyRemoteState(lastState);
     lastLocalPlaying = true;
 
-    channel.track({ role: "listener", color: myColor() }).then(function () {}, function () {});
+    trackPresence();
+    watchHat();
     Tubalr.creatures.start({
       selfId: clientId,
       isDj: false,
@@ -525,6 +555,10 @@ window.Tubalr = window.Tubalr || {};
   }
 
   function dropChannel() {
+    if (hatUnsub) {
+      hatUnsub();
+      hatUnsub = null;
+    }
     if (!channel) return;
     var client = Tubalr.supa.getClient();
     var ch = channel;

@@ -909,6 +909,489 @@ body:has(#playlist li) .playlist-col { display: flex; }
   box-shadow: 0 0 8px 2px rgba(var(--accent-rgb), 0.8);
 }
 
+/* ---------- Hats ---------- */
+/* One .creature-hat per creature, inside the body so it bobs and flips with it
+   (asymmetric hats — cap brim, bandana tail — face wherever the creature does).
+   Only .on shows anything: creatures.js adds it together with a catalog-checked
+   .hat-<id>, and each hat draws itself from this div + its two pseudos.
+   Anchored bottom-centre resting on the head; the shop preview re-anchors
+   `bottom` with a two-class selector, so per-hat bottom tweaks must stay
+   single-class. Floaty hats lift with margin, not transform (see .hat-halo). */
+.creature-hat {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% - 3px);
+  display: none;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.creature-hat.on { display: block; }
+
+/* A hat occupies the bulb's spot — retire the bulb while one is worn. */
+.creature.has-hat.is-dj .creature-body::after { display: none; }
+
+.hat-beanie {
+  width: 16px;
+  height: 8px;
+  background: #63e0e0;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  border-radius: 8px 8px 0 0;
+}
+.hat-beanie::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: #2f9c9c;
+}
+
+.hat-cap {
+  width: 14px;
+  height: 7px;
+  background: #6bb8ff;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  border-radius: 7px 7px 0 0;
+}
+.hat-cap::before {
+  content: "";
+  position: absolute;
+  right: -6px;
+  bottom: -1px;
+  width: 7px;
+  height: 3px;
+  background: #6bb8ff;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  border-radius: 0 3px 3px 0;
+}
+
+.hat-bow {
+  width: 12px;
+  height: 7px;
+}
+.hat-bow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #ff6b9e;
+  clip-path: polygon(0 0, 50% 35%, 100% 0, 100% 100%, 50% 65%, 0 100%);
+}
+.hat-bow::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 6px;
+  transform: translate(-50%, -50%);
+  background: #ff8fb5;
+  border-radius: 1px;
+}
+
+.hat-headband {
+  width: 20px;
+  height: 4px;
+  bottom: calc(100% - 6px); /* wraps the forehead, clear of the eyes */
+  background: #ffb86b;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  border-radius: 2px;
+}
+
+.hat-flower {
+  width: 4px;
+  height: 4px;
+  margin-bottom: 2px;
+  background: #ff6b9e;
+  border-radius: 50%;
+  box-shadow: -4px 0 0 #ff6b9e, 4px 0 0 #ff6b9e, 0 -4px 0 #ff6b9e, 0 4px 0 #ff6b9e;
+}
+.hat-flower::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #ede480;
+  transform: scale(1.2);
+}
+
+.hat-party {
+  width: 10px;
+  height: 10px;
+}
+.hat-party::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(-45deg, #ff6b9e 0 3px, #ede480 3px 6px);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.hat-party::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  width: 4px;
+  height: 4px;
+  transform: translateX(-50%);
+  background: #f5f2fa;
+  border-radius: 50%;
+}
+
+.hat-beret {
+  width: 14px;
+  height: 6px;
+  background: #b0475a;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  border-radius: 50% 50% 35% 35%;
+}
+.hat-beret::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  width: 2px;
+  height: 3px;
+  transform: translateX(-50%);
+  background: #7d3140;
+}
+
+.hat-pirate {
+  width: 16px;
+  height: 7px;
+  background: #a03030;
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.75) 1px, transparent 1.4px);
+  background-size: 5px 4px;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  border-radius: 8px 8px 0 0;
+}
+.hat-pirate::before {
+  /* knot tail at the back — creatures face right */
+  content: "";
+  position: absolute;
+  left: -5px;
+  bottom: 0;
+  width: 6px;
+  height: 4px;
+  background: #a03030;
+  clip-path: polygon(100% 0, 100% 100%, 0 60%);
+}
+
+.hat-cowboy {
+  width: 18px;
+  height: 3px;
+  background: #b07840;
+  border-radius: 2px;
+  box-shadow: var(--bevel-out);
+}
+.hat-cowboy::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 10px;
+  height: 7px;
+  transform: translateX(-50%);
+  background: #b07840;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  border-radius: 5px 5px 0 0;
+}
+.hat-cowboy::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 10px;
+  height: 2px;
+  transform: translateX(-50%);
+  background: #7d5426;
+}
+
+.hat-sombrero {
+  width: 22px;
+  height: 4px;
+  background: #ede480;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  border-radius: 50%;
+}
+.hat-sombrero::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 9px;
+  height: 8px;
+  transform: translateX(-50%);
+  background: #ede480;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.hat-sombrero::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 9px;
+  height: 2px;
+  transform: translateX(-50%);
+  background: #ff6b9e;
+}
+
+.hat-chef {
+  width: 10px;
+  height: 4px;
+  background: #f5f2fa;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+}
+.hat-chef::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 3px;
+  width: 15px;
+  height: 8px;
+  transform: translateX(-50%);
+  background: #f5f2fa;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  border-radius: 6px 6px 3px 3px;
+}
+
+.hat-mushroom {
+  width: 16px;
+  height: 9px;
+  background: #e05555;
+  background-image:
+    radial-gradient(circle at 4px 3px, #f5f2fa 1.6px, transparent 2px),
+    radial-gradient(circle at 11px 5px, #f5f2fa 1.3px, transparent 1.7px),
+    radial-gradient(circle at 8px 1.5px, #f5f2fa 1px, transparent 1.4px);
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  border-radius: 8px 8px 3px 3px;
+}
+
+.hat-grad {
+  width: 16px;
+  height: 4px;
+  background: #1c1826;
+  border: 1px solid rgba(0, 0, 0, 0.6);
+  border-radius: 1px;
+  box-shadow: var(--bevel-out);
+}
+.hat-grad::before {
+  /* skull cap peeking out under the board */
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 8px;
+  height: 3px;
+  transform: translateX(-50%);
+  background: #1c1826;
+}
+.hat-grad::after {
+  /* tassel off the front edge */
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 2px;
+  width: 2px;
+  height: 7px;
+  background: #ede480;
+}
+
+.hat-propeller {
+  width: 14px;
+  height: 7px;
+  background: linear-gradient(90deg, #ff6b9e 0 50%, #6bb8ff 50% 100%);
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  border-radius: 7px 7px 0 0;
+}
+.hat-propeller::before {
+  /* stem */
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -3px;
+  width: 2px;
+  height: 3px;
+  transform: translateX(-50%);
+  background: #c9c4d4;
+}
+.hat-propeller::after {
+  /* blades — the scaleX squash fakes the spin */
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -5px;
+  width: 14px;
+  height: 2px;
+  transform: translateX(-50%);
+  background: #ede480;
+  border-radius: 1px;
+  animation: hat-propeller-spin 0.9s linear infinite;
+}
+@keyframes hat-propeller-spin {
+  0%, 100% { transform: translateX(-50%) scaleX(1); }
+  50% { transform: translateX(-50%) scaleX(0.15); }
+}
+
+.hat-viking {
+  width: 14px;
+  height: 7px;
+  background: #9aa0ad;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  border-radius: 7px 7px 0 0;
+  box-shadow: var(--bevel-out);
+}
+.hat-viking::before,
+.hat-viking::after {
+  content: "";
+  position: absolute;
+  bottom: 2px;
+  width: 4px;
+  height: 8px;
+  background: #efe9dc;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+}
+.hat-viking::before {
+  left: -4px;
+  border-radius: 4px 0 0 4px;
+  transform: rotate(-14deg);
+}
+.hat-viking::after {
+  right: -4px;
+  border-radius: 0 4px 4px 0;
+  transform: rotate(14deg);
+}
+
+.hat-santa {
+  width: 14px;
+  height: 3px;
+  background: #f5f2fa;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: 2px;
+}
+.hat-santa::before {
+  /* flopped cone above the trim */
+  content: "";
+  position: absolute;
+  left: 1px;
+  bottom: 2px;
+  width: 12px;
+  height: 8px;
+  background: #e05555;
+  clip-path: polygon(70% 0, 100% 100%, 0 100%);
+}
+.hat-santa::after {
+  /* pompom at the tip */
+  content: "";
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  width: 4px;
+  height: 4px;
+  background: #f5f2fa;
+  border-radius: 50%;
+}
+
+.hat-wizard {
+  width: 16px;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+.hat-wizard::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 11px;
+  height: 12px;
+  transform: translateX(-50%);
+  background: #8a55e6;
+  clip-path: polygon(58% 0, 100% 100%, 0 100%);
+}
+.hat-wizard::after {
+  /* star */
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  width: 5px;
+  height: 5px;
+  transform: translateX(-50%);
+  background: #ede480;
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+
+.hat-tophat {
+  width: 16px;
+  height: 3px;
+  background: #1c1826;
+  border-radius: 2px;
+  box-shadow: var(--bevel-out);
+}
+.hat-tophat::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 10px;
+  height: 11px;
+  transform: translateX(-50%);
+  background: #1c1826;
+  border-radius: 2px 2px 0 0;
+  box-shadow: var(--bevel-out);
+}
+.hat-tophat::after {
+  /* accent band */
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 3px;
+  width: 10px;
+  height: 3px;
+  transform: translateX(-50%);
+  background: var(--accent);
+}
+
+.hat-halo {
+  width: 12px;
+  height: 5px;
+  margin-bottom: 4px;
+  border: 2px solid #ede480;
+  border-radius: 50%;
+  box-shadow: 0 0 8px 1px rgba(237, 228, 128, 0.7);
+  /* Floats via margin, not transform, so the shop preview's scale survives. */
+  animation: hat-halo-float 2.2s ease-in-out infinite;
+}
+@keyframes hat-halo-float {
+  0%, 100% { margin-bottom: 4px; }
+  50% { margin-bottom: 6px; }
+}
+
+.hat-crown {
+  width: 14px;
+  height: 8px;
+}
+.hat-crown::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(#f3e797, #d9c33f);
+  clip-path: polygon(0 100%, 0 15%, 26% 52%, 50% 5%, 74% 52%, 100% 15%, 100% 100%);
+}
+.hat-crown::after {
+  /* jewel */
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 1px;
+  width: 3px;
+  height: 3px;
+  transform: translateX(-50%);
+  background: #ff6b9e;
+  border-radius: 50%;
+}
+
 /* Ephemeral chat bubble above the head; creatures.js sets textContent and
    hides it again after a few seconds. */
 .creature-bubble {
@@ -1050,6 +1533,101 @@ body:has(#playlist li) .playlist-col { display: flex; }
 .creature-chat .btn-home {
   white-space: nowrap;
 }
+
+/* ---------- Hat shop ---------- */
+/* The "hats" button sits just above the chat box; the panel pops up from it.
+   Both are fixed like the chat box so the creature layer stays click-through
+   (creatures.js lists .hat-panel in CLICK_IGNORE). */
+.hat-toggle {
+  position: fixed;
+  left: 12px;
+  bottom: 48px; /* chat row (30px) + its 12px inset + 6px gap */
+  z-index: 2;
+  height: 30px;
+  min-width: 0;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+.hat-panel {
+  position: fixed;
+  left: 12px;
+  bottom: 84px; /* clears the toggle the way the toggle clears the chat row */
+  z-index: 950; /* over the playlist column (900), under the toast (1000) */
+  width: 312px;
+  max-width: calc(100vw - 24px);
+  /* Tall enough for the full 5-row grid — the scrollbar only appears when the
+     window is genuinely too short to show it. */
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  padding: 8px;
+  background: var(--surface);
+  border: 1px solid var(--field-border);
+  border-radius: 2px;
+  box-shadow: var(--bevel-out), 0 8px 20px rgba(0, 0, 0, 0.5);
+}
+
+.hat-panel-head {
+  display: flex;
+  align-items: center;
+  padding: 2px 2px 8px;
+  color: var(--text-strong);
+  font: 12px var(--font-mono);
+}
+
+.hat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+/* Sunken tiles, Winamp-style: the worn hat inverts into a solid accent block
+   like the playing playlist row. Previews are the real hat markup scaled up. */
+.hat-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 2px 5px;
+  color: var(--text);
+  font: 10px var(--font-mono);
+  background: var(--field-bg);
+  border: 1px solid var(--field-border);
+  border-radius: 2px;
+  box-shadow: var(--bevel-in);
+  cursor: pointer;
+}
+.hat-cell:hover:not(:disabled) { border-color: var(--accent); }
+.hat-cell:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.hat-cell.equipped {
+  color: #14101c;
+  background: var(--accent);
+}
+.hat-cell.equipped .hat-name { color: #14101c; }
+
+.hat-preview {
+  position: relative;
+  width: 100%;
+  height: 38px;
+}
+.hat-preview .creature-hat {
+  display: block;
+  bottom: 6px;
+  transform: translateX(-50%) scale(1.7);
+  transform-origin: bottom center;
+}
+
+.hat-name {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text-strong);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.hat-cell .hat-price { font-size: 9px; }
 
 /* ---------- Responsive: dock the panel below on narrow screens ---------- */
 @media (max-width: 860px) {
@@ -1225,9 +1803,15 @@ body.listener .playlist li {
 }
 
 /* ≤860 the playlist + transport dock at the bottom of the viewport; keep the
-   chat box (and its bubble reach) from sitting on top of them. */
+   chat box (and its bubble reach) from sitting on top of them. The hat shop
+   cluster rides the same lift, keeping its 6px rhythm above the chat row. */
 @media (max-width: 860px) {
   .creature-chat { bottom: calc(72px + env(safe-area-inset-bottom)); }
+  .hat-toggle { bottom: calc(108px + env(safe-area-inset-bottom)); }
+  .hat-panel {
+    bottom: calc(144px + env(safe-area-inset-bottom));
+    max-height: calc(100vh - 160px - env(safe-area-inset-bottom));
+  }
 }
 
 /* Mid-size stacked view: the landing-size header (full wordmark + hero

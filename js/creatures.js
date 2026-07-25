@@ -44,6 +44,13 @@ window.Tubalr = window.Tubalr || {};
   var flora = null; // .flora sub-layer (painted under the creatures)
   var chatForm = null;
   var chatInput = null;
+  var hatBtn = null; // opens the hat shop; sits just above the chat cluster
+  var hatPanel = null;
+  var hatCoinsEl = null;
+  var hatGridEl = null;
+  var unsubHats = null; // Tubalr.hats.onChange unsubscriber
+  var onHatDocDown = null; // document listeners that close the open panel
+  var onHatDocKey = null;
   var creatures = {}; // id -> { el, bubbleEl, x, y, facing, isSelf, isDj, ... }
   var plants = {}; // "cx,cy" -> plant obj, or null once a cell is known empty
   var selfId = null;
@@ -134,6 +141,12 @@ window.Tubalr = window.Tubalr || {};
     var body = document.createElement("div");
     body.className = "creature-body";
 
+    // Hat lives inside the body so it rides the idle bob and facing flip for
+    // free (the body's ::before/::after are taken by the eyes / DJ bulb).
+    var hat = document.createElement("div");
+    hat.className = "creature-hat";
+    body.appendChild(hat);
+
     el.appendChild(bubble);
     el.appendChild(body);
     layer.appendChild(el);
@@ -141,6 +154,7 @@ window.Tubalr = window.Tubalr || {};
     var c = {
       el: el,
       bubbleEl: bubble,
+      hatEl: hat,
       // World coordinates: x from the origin, y up from the BASE line. Everyone
       // spawns at the shared origin so they start clustered, then wander apart.
       x: 0,
@@ -158,9 +172,21 @@ window.Tubalr = window.Tubalr || {};
       // spot — the first packet snaps instead of gliding from fiction.
       fresh: !isSelf,
     };
+    // Self wears the locally equipped hat; remotes wear whatever id their
+    // presence meta carries (applyHat validates it against the catalog).
+    applyHat(c, isSelf ? Tubalr.hats && Tubalr.hats.getEquipped() : meta && meta.hat);
     if (isSelf) centerCamOn(c); // the camera is anchored to our own creature
     place(c);
     return c;
+  }
+
+  // Hat ids come off the network — only catalog-validated ids ever become CSS
+  // classes; anything else clears the hat. `has-hat` lets CSS retire the DJ's
+  // broadcast bulb while a hat occupies that spot.
+  function applyHat(c, hatId) {
+    var valid = !!(Tubalr.hats && Tubalr.hats.isValid(hatId));
+    c.hatEl.className = "creature-hat" + (valid ? " on hat-" + hatId : "");
+    c.el.classList.toggle("has-hat", valid);
   }
 
   function place(c) {
@@ -235,7 +261,7 @@ window.Tubalr = window.Tubalr || {};
   var CLICK_IGNORE =
     "button, a, input, textarea, select, form, li, iframe, " +
     ".playlist-col, .row-actions, .toast, .join-overlay, .config-banner, " +
-    ".listener-bar, .live-row, .brand";
+    ".listener-bar, .live-row, .brand, .hat-panel";
 
   // Aim the creature's center at a screen point, converted screen → world by
   // adding the camera. No clamp: heading toward an edge keeps you walking outward.
@@ -529,12 +555,132 @@ window.Tubalr = window.Tubalr || {};
     });
   }
 
+  // ---- hat shop ----
+
+  // The "hats" button above "say something…" opens a small shop panel: a grid of
+  // every catalog hat rendered as a live CSS preview (the exact markup the
+  // creatures wear, scaled up). Buying equips immediately; clicking the worn
+  // hat takes it off. All state lives in Tubalr.hats — this is just the face.
+  function ensureHatUI() {
+    if (hatBtn || !Tubalr.hats) return;
+
+    hatBtn = document.createElement("button");
+    hatBtn.type = "button";
+    hatBtn.className = "btn hat-toggle";
+    hatBtn.textContent = "hats";
+    hatBtn.title = "Coins & hats";
+    hatBtn.setAttribute("aria-label", "Open the hat shop");
+    hatBtn.setAttribute("aria-expanded", "false");
+
+    hatPanel = document.createElement("div");
+    hatPanel.className = "hat-panel";
+    hatPanel.hidden = true;
+
+    var head = document.createElement("div");
+    head.className = "hat-panel-head";
+    hatCoinsEl = document.createElement("span");
+    hatCoinsEl.className = "hat-coins";
+    head.appendChild(hatCoinsEl);
+
+    hatGridEl = document.createElement("div");
+    hatGridEl.className = "hat-grid";
+
+    hatPanel.appendChild(head);
+    hatPanel.appendChild(hatGridEl);
+    document.body.appendChild(hatBtn);
+    document.body.appendChild(hatPanel);
+
+    hatBtn.addEventListener("click", function () {
+      toggleHatPanel(hatPanel.hidden);
+    });
+    hatGridEl.addEventListener("click", onHatCellClick);
+
+    // Close on any press outside the panel/button, and on Escape.
+    onHatDocDown = function (e) {
+      if (hatPanel.hidden) return;
+      if (e.target.closest && e.target.closest(".hat-panel, .hat-toggle")) return;
+      toggleHatPanel(false);
+    };
+    onHatDocKey = function (e) {
+      if (e.key === "Escape" && !hatPanel.hidden) toggleHatPanel(false);
+    };
+    document.addEventListener("pointerdown", onHatDocDown);
+    document.addEventListener("keydown", onHatDocKey);
+  }
+
+  function toggleHatPanel(open) {
+    if (!hatPanel) return;
+    hatPanel.hidden = !open;
+    hatBtn.setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) renderHatPanel();
+  }
+
+  function onHatCellClick(e) {
+    var cell = e.target.closest ? e.target.closest(".hat-cell") : null;
+    if (!cell || cell.disabled) return;
+    var id = cell.getAttribute("data-id");
+    var hats = Tubalr.hats;
+    if (hats.getEquipped() === id) hats.setEquipped(null);
+    else if (hats.owns(id)) hats.setEquipped(id);
+    else hats.buy(id);
+    // Every branch emits onChange, which re-renders the panel and re-hats self.
+  }
+
+  function renderHatPanel() {
+    if (!hatPanel || hatPanel.hidden) return;
+    var hats = Tubalr.hats;
+    var coins = hats.getCoins();
+    var equipped = hats.getEquipped();
+    hatCoinsEl.textContent = "⛁ " + coins + " coins";
+    hatGridEl.textContent = ""; // rebuild — 20 cells is cheap
+
+    hats.CATALOG.forEach(function (h) {
+      var owned = hats.owns(h.id);
+      var cell = document.createElement("button");
+      cell.type = "button";
+      cell.className =
+        "hat-cell" + (owned ? " owned" : "") + (equipped === h.id ? " equipped" : "");
+      cell.setAttribute("data-id", h.id);
+      if (!owned && coins < h.price) cell.disabled = true;
+
+      var preview = document.createElement("div");
+      preview.className = "hat-preview";
+      var sample = document.createElement("div");
+      sample.className = "creature-hat on hat-" + h.id;
+      preview.appendChild(sample);
+
+      var name = document.createElement("div");
+      name.className = "hat-name";
+      name.textContent = h.name;
+
+      var price = document.createElement("div");
+      price.className = "hat-price";
+      price.textContent =
+        equipped === h.id ? "wearing" : owned ? "owned" : "⛁ " + h.price;
+
+      cell.appendChild(preview);
+      cell.appendChild(name);
+      cell.appendChild(price);
+      cell.title = owned ? h.name : h.name + " — " + h.price + " coins";
+      hatGridEl.appendChild(cell);
+    });
+  }
+
   // ---- public API ----
 
   function start(opts) {
     ensureLayer();
     ensureChatForm();
+    ensureHatUI();
     selfId = opts.selfId;
+    // Coins/hat changes: re-dress our own creature and refresh the open panel.
+    if (Tubalr.hats && !unsubHats) {
+      unsubHats = Tubalr.hats.onChange(function () {
+        var self = creatures[selfId];
+        if (self) applyHat(self, Tubalr.hats.getEquipped());
+        renderHatPanel();
+      });
+    }
     cbs.onMove = opts.onMove || function () {};
     cbs.onChat = opts.onChat || function () {};
     computeBounds(); // the right wall, before we centre the camera on our creature
@@ -582,11 +728,36 @@ window.Tubalr = window.Tubalr || {};
       chatForm = null;
       chatInput = null;
     }
+    if (unsubHats) {
+      unsubHats();
+      unsubHats = null;
+    }
+    if (hatBtn) {
+      document.removeEventListener("pointerdown", onHatDocDown);
+      document.removeEventListener("keydown", onHatDocKey);
+      onHatDocDown = null;
+      onHatDocKey = null;
+      hatBtn.remove();
+      hatPanel.remove();
+      hatBtn = null;
+      hatPanel = null;
+      hatCoinsEl = null;
+      hatGridEl = null;
+    }
   }
 
   function spawn(id, meta) {
     if (!layer || !id || id === selfId || creatures[id]) return;
     creatures[id] = makeCreature(id, meta, false);
+  }
+
+  // Presence re-syncs on every track() update, so this is how a peer's
+  // mid-session hat change (or removal) reaches their already-spawned creature.
+  // Self is dressed from Tubalr.hats directly, never from the network.
+  function setHat(id, hatId) {
+    var c = creatures[id];
+    if (!c || c.isSelf) return;
+    applyHat(c, hatId);
   }
 
   function applyMove(id, data) {
@@ -639,6 +810,7 @@ window.Tubalr = window.Tubalr || {};
     start: start,
     stop: stop,
     spawn: spawn,
+    setHat: setHat,
     applyMove: applyMove,
     poke: poke,
     showChat: showChat,
