@@ -921,6 +921,9 @@ body:has(#playlist li) .playlist-col { display: flex; }
 }
 .creature-bubble[hidden] { display: none; }
 
+/* The DJ wears the broadcast bulb overhead — lift their bubble clear of it. */
+.creature.is-dj .creature-bubble { bottom: 42px; }
+
 .creature-bubble::after {
   content: "";
   position: absolute;
