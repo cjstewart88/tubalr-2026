@@ -38,7 +38,6 @@ window.Tubalr = window.Tubalr || {};
     els.next = $("btn-next");
     els.repeat = $("btn-repeat");
     els.playIcon = $("play-pause-icon");
-    els.playerCover = $("player-cover");
     els.repeatIcon = $("repeat-icon");
     els.recentSection = $("recent");
     els.recentList = $("recent-list");
@@ -623,8 +622,6 @@ window.Tubalr = window.Tubalr || {};
   function reflectPlaying(isPlaying) {
     els.playIcon.innerHTML = isPlaying ? ICON_PAUSE : ICON_PLAY;
     els.play.setAttribute("aria-label", isPlaying ? "Pause" : "Play");
-    // Covers YouTube's paused-state "More videos" overlay (see index.html).
-    els.playerCover.hidden = isPlaying;
   }
 
   function reflectRepeat(mode) {
@@ -822,7 +819,6 @@ window.Tubalr = window.Tubalr || {};
     els.tabQueue.addEventListener("click", function () { setActiveTab("queue"); });
     els.tabRecent.addEventListener("click", function () { setActiveTab("recent"); });
 
-    els.playerCover.addEventListener("click", player.togglePlay);
     els.shuffle.addEventListener("click", player.shuffleQueue);
     els.prev.addEventListener("click", player.prev);
     els.play.addEventListener("click", player.togglePlay);

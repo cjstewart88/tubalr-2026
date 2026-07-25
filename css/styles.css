@@ -333,7 +333,6 @@ a { color: inherit; text-decoration: none; }
    shadow. The bevel goes on the border rather than inset, since the iframe
    paints over anything inside the box. */
 .player-frame {
-  position: relative; /* anchors .player-cover over the iframe */
   width: 100%;
   aspect-ratio: 16 / 9;
   background: #000;
@@ -342,25 +341,6 @@ a { color: inherit; text-decoration: none; }
   overflow: hidden;
   box-shadow: 8px 6px 18px rgba(0, 0, 0, 0.45);
 }
-
-/* Opaque blank over the paused player: YouTube's pause overlay ("More
-   videos") can't be turned off and can't be styled cross-origin, so it gets
-   covered instead. The whole cover is a play button. */
-.player-cover {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 0;
-  background: #000;
-  color: #4a4556;
-  cursor: pointer;
-  transition: color 0.15s;
-}
-.player-cover:hover { color: var(--accent); }
-.player-cover[hidden] { display: none; }
 
 #player,
 #player iframe {
