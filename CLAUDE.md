@@ -191,7 +191,11 @@ silently no-ops when Supabase isn't configured. Things to preserve:
   property so the idle-bob keyframes can compose `scaleX(var(--facing))` — an inline
   transform would be stomped by the animation. Creatures are pure CSS (CSP `img-src
   'self'` forbids data-URI sprites). Keyboard is ignored while focus is in an
-  input/interactive element; Enter focuses the chat box. Chat renders via
+  input/interactive element; Enter focuses the chat box. **Clicking/tapping dead
+  space also moves the creature** (walk to the click's x; a click up in the air adds
+  a hop on arrival) — the only movement a phone gets; the `CLICK_IGNORE` selector
+  keeps clicks on anything interactive (or the opaque panel) meaning what they
+  always meant, and held keys override a pending click-walk. Chat renders via
   `textContent` only, clamped to 120 chars on send *and* receive.
 - **`beforeunload` shows generic browser text only** — the "ends your stream" wording
   can't be customized; that's a platform limit.

@@ -24,6 +24,7 @@ window.Tubalr = window.Tubalr || {};
   var selfId = null;
   var cbs = { onMove: function () {}, onChat: function () {} };
   var keys = { left: false, right: false, jump: false };
+  var clickTarget = null; // { x, jump } — click/tap-to-walk destination
   var raf = 0;
   var lastFrame = 0;
   var lastSend = 0;
@@ -131,6 +132,30 @@ window.Tubalr = window.Tubalr || {};
     if (dir) keys[dir] = false;
   }
 
+  // ---- click/tap-to-walk (the only movement a phone gets) ----
+  // The layer itself is pointer-events: none, so clicks land on the page;
+  // listen on the document and take only the ones that hit dead space — a
+  // click on anything interactive (or on the opaque panel the creatures walk
+  // behind) keeps its normal meaning.
+  var CLICK_IGNORE =
+    "button, a, input, textarea, select, form, li, iframe, " +
+    ".playlist-col, .row-actions, .toast, .join-overlay, .config-banner, " +
+    ".listener-bar, .live-row, .brand";
+  var CLICK_JUMP_H = 40; // clicks this far above the ground order a hop
+
+  function onDocClick(e) {
+    if (e.defaultPrevented) return;
+    if (e.target.closest && e.target.closest(CLICK_IGNORE)) return;
+    var self = creatures[selfId];
+    if (!self) return;
+    // Aim the creature's center at the click; a click up in the air means
+    // "walk there, then jump" (a click right above it hops on the spot).
+    clickTarget = {
+      x: Math.min(window.innerWidth - 24, Math.max(0, e.clientX - 12)),
+      jump: window.innerHeight - e.clientY - GROUND > CLICK_JUMP_H,
+    };
+  }
+
   // ---- animation loop: self physics + remote interpolation ----
 
   function frame(now) {
@@ -154,7 +179,28 @@ window.Tubalr = window.Tubalr || {};
   }
 
   function stepSelf(c, dt, now) {
-    c.vx = (keys.right ? WALK_SPEED : 0) - (keys.left ? WALK_SPEED : 0);
+    var keyVx = (keys.right ? WALK_SPEED : 0) - (keys.left ? WALK_SPEED : 0);
+    if (keyVx) clickTarget = null; // hands on the keys override a click-walk
+
+    if (clickTarget) {
+      var dx = clickTarget.x - c.x;
+      if (Math.abs(dx) <= WALK_SPEED * dt) {
+        // Arrived: snap to the spot (no overshoot oscillation) and cash in
+        // the hop if the click was up in the air.
+        c.x = clickTarget.x;
+        c.vx = 0;
+        if (clickTarget.jump && c.grounded) {
+          c.vy = JUMP_V;
+          c.grounded = false;
+        }
+        clickTarget = null;
+      } else {
+        c.vx = dx > 0 ? WALK_SPEED : -WALK_SPEED;
+      }
+    } else {
+      c.vx = keyVx;
+    }
+
     if (keys.jump && c.grounded) {
       c.vy = JUMP_V;
       c.grounded = false;
@@ -237,6 +283,7 @@ window.Tubalr = window.Tubalr || {};
     }
     document.addEventListener("keydown", onKeyDown);
     document.addEventListener("keyup", onKeyUp);
+    document.addEventListener("click", onDocClick);
     lastFrame = 0;
     raf = requestAnimationFrame(frame);
   }
@@ -244,8 +291,10 @@ window.Tubalr = window.Tubalr || {};
   function stop() {
     document.removeEventListener("keydown", onKeyDown);
     document.removeEventListener("keyup", onKeyUp);
+    document.removeEventListener("click", onDocClick);
     cancelAnimationFrame(raf);
     raf = 0;
+    clickTarget = null;
     for (var id in bubbleTimers) clearTimeout(bubbleTimers[id]);
     bubbleTimers = {};
     creatures = {};
