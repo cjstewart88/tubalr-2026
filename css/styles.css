@@ -770,18 +770,14 @@ body:has(#playlist li) .playlist-col { display: flex; }
   font-size: 11px;
 }
 
-/* What a listener sees under the player instead of the go-live row. */
+/* What a listener sees under the player instead of the go-live row: just the
+   badge and the count sitting flush left, no boxed container around them. */
 .listener-bar {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 10px;
   margin-top: 10px;
-  padding: 7px 10px;
-  background: rgba(var(--accent-rgb), 0.07);
-  border: 1px solid var(--field-border);
-  border-radius: 2px;
-  box-shadow: var(--bevel-out);
 }
 
 /* Full-screen gate a broadcast link lands on: unmuted playback needs a click,
