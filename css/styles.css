@@ -64,9 +64,18 @@ body {
 }
 
 /* When the playlist docks on the right, reserve its width so the centered
-   .stage recenters within the remaining space (fixed panel ignores this). */
+   .stage recenters within the remaining space (fixed panel ignores this).
+   The nebula wash re-aims too: its center is baked into the gradient image
+   (not background-position), so redeclare it shifted half a panel left — and
+   re-pin the attachment, which the background shorthand would otherwise reset. */
 @media (min-width: 861px) {
-  body:has(#playlist li) { padding-right: var(--panel-w); }
+  body:has(#playlist li) {
+    padding-right: var(--panel-w);
+    background:
+      radial-gradient(1100px 520px at calc(50% - var(--panel-w) / 2) -12%, rgba(var(--accent-rgb), 0.16), transparent 70%),
+      var(--bg);
+    background-attachment: fixed;
+  }
 }
 
 a { color: inherit; text-decoration: none; }
@@ -1087,7 +1096,10 @@ body:has(#playlist li) .playlist-col { display: flex; }
     padding-left: 52px; /* clear the icon (44 + gap) */
   }
 
-  body:has(#playlist li) .now-playing { margin-top: 12px; }
+  body:has(#playlist li) .now-playing {
+    margin-top: 12px;
+    margin-bottom: 12px; /* breathing room between the live row and the playlist */
+  }
 
   /* Full-bleed 16:9 player breaking out of the centered stage. */
   body:has(#playlist li) .player-frame {
