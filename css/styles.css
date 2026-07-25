@@ -84,7 +84,7 @@ a { color: inherit; text-decoration: none; }
 .stage {
   width: min(92vw, 500px);
   margin: 0 auto;
-  padding: clamp(48px, 14vh, 160px) 0 64px;
+  padding: 50px 0 64px;
   text-align: center;
 }
 
@@ -943,6 +943,76 @@ body:has(#playlist li) .playlist-col { display: flex; }
   border-top-color: var(--field-border);
 }
 
+/* ---- Procedural flora: glowing plants generated per world cell ----
+   The .flora sub-layer sits first in #creatures so it paints under the
+   creatures. Each .plant is positioned by an inline transform (world − camera);
+   its .plant-body carries the grow-in (scale/opacity), so the two never fight. */
+.flora {
+  position: absolute;
+  inset: 0;
+}
+
+.plant {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 4px;
+  will-change: transform;
+}
+
+/* A slim glowing stalk, capped with a luminous bloom (the ::after). Starts
+   collapsed and grows in when the camera reveals it (.grown, added by JS). */
+.plant-body {
+  position: relative;
+  width: 3px;
+  height: 18px;
+  margin-left: -1px;
+  border-radius: 2px;
+  background: linear-gradient(to top, rgba(20, 16, 28, 0.6), var(--plant-color, #7fd6a4));
+  transform-origin: bottom center;
+  transform: scale(0);
+  opacity: 0;
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.7s ease;
+}
+.plant.grown .plant-body {
+  transform: scale(var(--plant-scale, 1));
+  opacity: 1;
+}
+
+.plant-body::after {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  margin-left: -3.5px;
+  border-radius: 50%;
+  background: var(--plant-color, #7fd6a4);
+  box-shadow: 0 0 8px 2px var(--plant-color, #7fd6a4);
+  animation: plant-glow 3.2s ease-in-out infinite;
+}
+
+/* Variants: a taller reed, and a low twin-bud sprout. */
+.plant-v1 .plant-body { height: 26px; }
+.plant-v2 .plant-body { height: 12px; }
+.plant-v2 .plant-body::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -4px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--plant-color, #7fd6a4);
+  box-shadow: 0 0 6px 1px var(--plant-color, #7fd6a4);
+}
+
+@keyframes plant-glow {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
 /* The chat box (bottom-left, its own element so the layer stays click-through).
    Enter focuses it when nothing else has focus; Escape blurs. */
 .creature-chat {
@@ -974,6 +1044,11 @@ body:has(#playlist li) .playlist-col { display: flex; }
   min-width: 0;
   padding: 0 12px;
   font-size: 12px;
+}
+
+/* The "teleport home" warp sits beside "say"; nowrap keeps its label on one line. */
+.creature-chat .btn-home {
+  white-space: nowrap;
 }
 
 /* ---------- Responsive: dock the panel below on narrow screens ---------- */

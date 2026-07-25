@@ -12,6 +12,8 @@
 //   end    DJ → all   {}                        — explicit stream end.
 //   move   any → all  { id, x, y, d, j }        — ≤5 Hz per client (creatures.js
 //                      throttles; supabase-js caps clients at 10 events/sec).
+//                      x/y are absolute *world* px (one shared coordinate space),
+//                      not viewport fractions — see the header in creatures.js.
 //   chat   any → all  { id, text }              — clamped to 120 chars both ends.
 window.Tubalr = window.Tubalr || {};
 

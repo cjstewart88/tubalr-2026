@@ -193,13 +193,38 @@ silently no-ops when Supabase isn't configured. Things to preserve:
   950, toast 1000, join overlay 1100). Creature facing flips via the `--facing` custom
   property so the idle-bob keyframes can compose `scaleX(var(--facing))` — an inline
   transform would be stomped by the animation. Creatures are pure CSS (CSP `img-src
-  'self'` forbids data-URI sprites). **Movement is free 2D across the whole
-  viewport** — no gravity or ground line: WASD/arrows move in all four directions,
-  **clicking/tapping any dead spot glides the creature straight to that exact
-  point** (the only movement a phone gets), and space is a cosmetic hop layered on
-  top of the position (`hopH`), so positions rest wherever they're left. Move
-  packets carry viewport-fraction x/y so differently sized windows agree on "the
-  same spot". The `CLICK_IGNORE` selector keeps clicks on anything interactive (or
+  'self'` forbids data-URI sprites). **The world is infinite.** Creatures live in
+  **world space** (unbounded px), and a **camera** follows the local creature: when
+  it pushes past a proportional **deadzone** (game-dev style — the camera holds still
+  while you roam the middle, biased low so creatures rest *below* the centred player,
+  not behind it), `followCamera` slides `cam` so the whole world (creatures + flora)
+  scrolls the other way — you can wander outward forever, and two people can drift far
+  enough to leave each other's view (accepted). Spawn/home rest low-centre via
+  `centerCamOn` for the same reason, and the band's top is clamped to a measured ceiling
+  `PLAYER_GAP` below the `.player-frame` (`computeBounds` → `bounds.ceilingSy`) so
+  creatures never crowd up against the video/logo — the world scrolls instead. The right wall
+  isn't the window edge but the **playlist's left edge** (`computeBounds`, recomputed on
+  resize): the opaque fixed column *is* the edge of the world on desktop, so creatures
+  don't wander behind it (on mobile it docks below, so the wall falls back to the window
+  edge). Rendering is always `world − cam` (see `place`). Movement is free 2D — no
+  gravity or ground line: WASD/arrows move in all four directions; **pressing any dead
+  spot glides the creature there, and *holding* makes it chase the pointer** (screen→world
+  via `screenToWorld`), so holding near a wall keeps you walking as the world scrolls —
+  unified mouse/touch/pen via pointer events, so this is the phone's movement too. Space
+  is a cosmetic hop layered on top of the position (`hopH`), so positions rest wherever
+  they're left.
+  Everyone spawns at the shared world origin (clustered start), and a **"⌂" home
+  button** beside "say" warps the local creature back beside the DJ (or to origin if
+  it *is* the DJ) and snaps the camera. Move packets carry **absolute world px** (one
+  shared coordinate space) — *not* viewport fractions anymore; a world px is a world
+  px on every client, so there's no viewport scaling. That's a deploy-synchronized
+  protocol change (all clients load one version from Pages), so don't reintroduce
+  fractions. **Glowing plants** (`.flora`) are generated as a *pure function of world
+  position* — `cellRand(cx, cy, salt)` hashes each grid cell, so a spot always grows
+  the same flora for every client with no storage and no networking; `updateFlora`
+  only instantiates cells within the viewport + a one-cell margin and recycles the
+  rest, and `placePlant` adds `.grown` (the CSS scale/opacity sprout) as each plant
+  enters view. The `CLICK_IGNORE` selector keeps clicks on anything interactive (or
   the opaque panel) meaning what they always meant, and held keys override a
   pending click-glide. Keyboard is ignored while focus is in an input/interactive
   element; Enter focuses the chat box. Chat renders via `textContent` only, clamped
