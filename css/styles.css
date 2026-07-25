@@ -721,7 +721,9 @@ body:has(#playlist li) .playlist-col { display: flex; }
   color: var(--accent);
   font: 11px var(--font-mono);
   letter-spacing: 0.08em;
-  background: rgba(var(--accent-rgb), 0.12);
+  /* The accent wash layered over the opaque page colour — same tint, but no
+     alpha for the creatures wandering behind the stage to peek through. */
+  background: linear-gradient(rgba(var(--accent-rgb), 0.12), rgba(var(--accent-rgb), 0.12)), var(--bg);
   border: 1px solid var(--field-border);
   border-radius: 2px;
   box-shadow: var(--bevel-out);
