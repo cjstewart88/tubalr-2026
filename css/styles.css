@@ -1113,8 +1113,6 @@ body:has(#playlist li) .playlist-col { display: flex; }
              max(8px, env(safe-area-inset-left));
   }
 
-  /* Chat box clears the pinned transport bar, same as the toast above. */
-  .creature-chat { bottom: calc(72px + env(safe-area-inset-bottom)); }
 }
 
 /* ---------- DJ mode: listener lockdown ----------
@@ -1139,8 +1137,31 @@ body.listener .playlist li {
   padding-right: 10px; /* no kebab to reserve room for */
 }
 
-/* The phone app-shell header keeps its height from the search row; with search
-   hidden for listeners, hold room for the absolutely-placed brand icon. */
+/* ≤860 the playlist + transport dock at the bottom of the viewport; keep the
+   chat box (and its bubble reach) from sitting on top of them. */
+@media (max-width: 860px) {
+  .creature-chat { bottom: calc(72px + env(safe-area-inset-bottom)); }
+}
+
+/* Mid-size stacked view: the landing-size header (full wordmark + hero
+   padding) eats enough of the fixed-height column that the transport lands
+   below the fold. Listeners have no search row to justify the space — compact
+   the chrome so the whole column fits. */
+@media (min-width: 601px) and (max-width: 860px) {
+  body.listener:has(#playlist li) .stage {
+    padding-top: 14px;
+    padding-bottom: 16px;
+  }
+  body.listener:has(#playlist li) .brand {
+    font-size: 34px;
+    margin-bottom: 10px;
+  }
+  body.listener:has(#playlist li) .now-playing { margin-top: 12px; }
+}
+
+/* Phone app shell: the header's height came from the search row. With search
+   hidden for listeners it collapses, leaving the absolute brand icon sitting
+   on the player — push the player below the icon instead. */
 @media (max-width: 600px) {
-  body.listener:has(#playlist li) .stage { min-height: 68px; }
+  body.listener:has(#playlist li) .now-playing { margin-top: 58px; }
 }
