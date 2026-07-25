@@ -81,6 +81,9 @@ window.Tubalr = window.Tubalr || {};
       hopH: 0, // the hop rides on top of y, so a hop mid-glide arcs naturally
       hopV: 0,
       isSelf: !!isSelf,
+      // Until the first move packet lands, this position is a made-up spawn
+      // spot — the first packet snaps instead of gliding from fiction.
+      fresh: !isSelf,
     };
     c.targetX = c.x;
     place(c);
@@ -338,7 +341,19 @@ window.Tubalr = window.Tubalr || {};
     if (!c) return; // presence spawn hasn't landed yet; next packet will find it
     c.targetX = Math.min(maxX(), Math.max(0, (data.x || 0) * window.innerWidth));
     c.targetY = Math.min(maxY(), Math.max(0, (data.y || 0) * window.innerHeight));
+    if (c.fresh) {
+      c.fresh = false;
+      c.x = c.targetX;
+      c.y = c.targetY;
+    }
     if (data.d) c.facing = data.d < 0 ? -1 : 1;
+  }
+
+  // Force the next loop tick to emit one position packet even at rest. live.js
+  // calls this when someone joins: idle creatures never send moves, so without
+  // it a fresh tab would only ever see them at made-up spawn spots.
+  function poke() {
+    if (raf && creatures[selfId]) restSent = false;
   }
 
   function showChat(id, text) {
@@ -369,6 +384,7 @@ window.Tubalr = window.Tubalr || {};
     stop: stop,
     spawn: spawn,
     applyMove: applyMove,
+    poke: poke,
     showChat: showChat,
     remove: remove,
   };

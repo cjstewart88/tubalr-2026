@@ -95,7 +95,12 @@ window.Tubalr = window.Tubalr || {};
 
   function onMoveMsg(msg) {
     var p = msg && msg.payload;
-    if (p && p.id) Tubalr.creatures.applyMove(p.id, p);
+    if (!p || !p.id) return;
+    // A move can race ahead of the presence sync that would spawn its creature
+    // (spawn is idempotent, so this is a no-op once the roster has landed).
+    var metas = channel && channel.presenceState()[p.id];
+    if (metas && metas[0]) Tubalr.creatures.spawn(p.id, metas[0]);
+    Tubalr.creatures.applyMove(p.id, p);
   }
 
   function onChatMsg(msg) {
@@ -164,6 +169,7 @@ window.Tubalr = window.Tubalr || {};
       .on("presence", { event: "sync" }, onPresenceSync)
       .on("presence", { event: "join" }, function () {
         queueStateSend(); // fresh joiner gets state now, not at the next heartbeat
+        Tubalr.creatures.poke(); // ...and our creature's real spot, idle or not
       })
       .on("presence", { event: "leave" }, function (e) {
         Tubalr.creatures.remove(e.key);
@@ -187,6 +193,7 @@ window.Tubalr = window.Tubalr || {};
       onMove: sendMove,
       onChat: sendChat,
     });
+    Tubalr.creatures.poke(); // tell the room where we spawned
     channel.track({ role: "dj", color: DJ_COLOR }).then(function () {}, function () {});
     Tubalr.player.setStateHook(queueStateSend);
     heartbeatTimer = setInterval(sendState, HEARTBEAT_MS);
@@ -295,6 +302,7 @@ window.Tubalr = window.Tubalr || {};
       .on("broadcast", { event: "chat" }, onChatMsg)
       .on("presence", { event: "sync" }, onPresenceSync)
       .on("presence", { event: "join" }, function (e) {
+        Tubalr.creatures.poke(); // announce our creature's spot to the newcomer
         var isDj = (e.newPresences || []).some(function (m) {
           return m.role === "dj";
         });
@@ -404,6 +412,7 @@ window.Tubalr = window.Tubalr || {};
       onMove: sendMove,
       onChat: sendChat,
     });
+    Tubalr.creatures.poke(); // tell the room where we spawned
     buildListenerBar();
     onPresenceSync();
   }

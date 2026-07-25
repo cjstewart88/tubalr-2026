@@ -165,7 +165,10 @@ silently no-ops when Supabase isn't configured. Things to preserve:
   events; presence carries only static identity (`{ role, color }`). **Movement goes
   over broadcast at ≤5 Hz, not presence** — `track()` fans out CRDT diffs and
   supabase-js caps a client at 10 events/sec, so don't raise the rate or move
-  positions into presence.
+  positions into presence. Because idle creatures send no moves, **every client
+  re-announces its position once (`creatures.poke()`) on any presence join** —
+  that's how a fresh/refreshed tab learns where idle creatures actually are; the
+  first packet for a creature snaps instead of gliding (its spawn spot was fiction).
 - **Listeners never call YouTube search** (quota!). The current track's `videoId`
   always arrives resolved — the DJ resolved it to play it — and
   `player.applyRemoteState` never searches or prefetches. Keep it that way.
