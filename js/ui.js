@@ -46,6 +46,7 @@ window.Tubalr = window.Tubalr || {};
     els.recentPanel = $("panel-recent");
     els.recentPanelList = $("recent-panel-list");
     els.genreChipList = $("genre-chip-list");
+    els.share = $("btn-share");
   }
 
   // Icon markup for the action the play/pause button performs (the opposite of
@@ -711,6 +712,50 @@ window.Tubalr = window.Tubalr || {};
     });
   }
 
+  // Reflect the running session in the address bar so it's shareable and
+  // bookmarkable: one query param keyed by mode (?only= / ?similar= / ?genre=),
+  // value = the artist or genre. replaceState, not push — the bar mirrors the
+  // current session without stacking history entries per search. Relative "?…"
+  // so it stays under the GitHub Pages subpath. Best-effort: a throw (file://,
+  // sandboxed) just leaves the URL unchanged; nothing depends on it succeeding.
+  function writeSessionUrl(artist, mode) {
+    try {
+      history.replaceState(null, "", "?" + mode + "=" + encodeURIComponent(artist));
+    } catch (e) {
+      /* history blocked — sharing degrades to whatever's in the bar */
+    }
+  }
+
+  // Boot a session straight from a shared URL (see js/app.js routing). Fills the
+  // input and runs the exact same build() path a click takes, so recents, the URL
+  // rewrite, and tab-switching all stay consistent. No autoplay: browsers block
+  // gesture-less playback, so the queue builds and renders and the user taps play.
+  function autoStart(mode, value) {
+    var v = String(value || "").trim();
+    if (!v || !BUILDERS[mode]) return;
+    els.input.value = v;
+    if (mode === "genre") genres.use(v); // move to front of the MRU chip list
+    build(mode);
+  }
+
+  // One-tap copy for the single Share button. While broadcasting it copies the
+  // clean ?dj= link (live.js owns that); otherwise the static session link the
+  // address bar already shows (writeSessionUrl put it there). Clipboard API with
+  // a prompt fallback so a blocked clipboard still lets them copy by hand.
+  function copySessionUrl() {
+    var live = Tubalr.live && Tubalr.live.broadcastUrl && Tubalr.live.broadcastUrl();
+    var url = live || location.href;
+    var msg = live ? "Broadcast link copied." : "Link copied — share this session.";
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(
+        function () { showToast(msg); },
+        function () { window.prompt("Copy this link:", url); }
+      );
+    } else {
+      window.prompt("Copy this link:", url);
+    }
+  }
+
   function build(mode) {
     var artist = els.input.value.trim();
     if (!artist || building) return;
@@ -730,6 +775,7 @@ window.Tubalr = window.Tubalr || {};
         renderPlaylist(queue, mode);
         player.start(queue);
         recent.add(artist, mode);
+        writeSessionUrl(artist, mode);
         renderRecent();
         setActiveTab("queue"); // a new queue takes focus over the recent list
       })
@@ -824,6 +870,8 @@ window.Tubalr = window.Tubalr || {};
     els.play.addEventListener("click", player.togglePlay);
     els.next.addEventListener("click", player.next);
     els.repeat.addEventListener("click", player.toggleRepeat);
+
+    if (els.share) els.share.addEventListener("click", copySessionUrl);
   }
 
   function init() {
@@ -838,5 +886,5 @@ window.Tubalr = window.Tubalr || {};
 
   // toast: non-error notices too (DJ mode uses it for "broadcast ended" etc.);
   // setStatus stays errors-only.
-  Tubalr.ui = { init: init, setStatus: setStatus, toast: showToast };
+  Tubalr.ui = { init: init, setStatus: setStatus, toast: showToast, autoStart: autoStart };
 })(window.Tubalr);

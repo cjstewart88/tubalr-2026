@@ -44,6 +44,7 @@ window.Tubalr = window.Tubalr || {};
   var flora = null; // .flora sub-layer (painted under the creatures)
   var chatForm = null;
   var chatInput = null;
+  var toolsRow = null; // fixed row above the chat box: home warp + cosmetics toggle
   var hatBtn = null; // opens the hat picker; sits just above the chat cluster
   var hatPanel = null;
   var hatGridEl = null;
@@ -260,7 +261,7 @@ window.Tubalr = window.Tubalr || {};
   var CLICK_IGNORE =
     "button, a, input, textarea, select, form, li, iframe, " +
     ".playlist-col, .row-actions, .toast, .join-overlay, .config-banner, " +
-    ".listener-bar, .live-row, .brand, .hat-panel";
+    ".live-row, .brand, .hat-panel, .creature-tools";
 
   // Aim the creature's center at a screen point, converted screen → world by
   // adding the camera. No clamp: heading toward an edge keeps you walking outward.
@@ -518,22 +519,7 @@ window.Tubalr = window.Tubalr || {};
     chatInput.placeholder = "say something…";
     chatInput.setAttribute("aria-label", "Chat message");
 
-    var send = document.createElement("button");
-    send.type = "submit";
-    send.className = "btn";
-    send.textContent = "say";
-
-    // Warp back to the group — the escape hatch for an infinite world.
-    var home = document.createElement("button");
-    home.type = "button";
-    home.className = "btn btn-home";
-    home.textContent = "teleport home";
-    home.title = "Back to start";
-    home.setAttribute("aria-label", "Return to the starting spot");
-
-    chatForm.appendChild(chatInput);
-    chatForm.appendChild(send);
-    chatForm.appendChild(home);
+    chatForm.appendChild(chatInput); // Enter submits — no separate "say" button
     document.body.appendChild(chatForm);
 
     chatForm.addEventListener("submit", function (e) {
@@ -545,13 +531,30 @@ window.Tubalr = window.Tubalr || {};
       cbs.onChat(text);
       showChat(selfId, text); // local echo — broadcasts don't loop back to self
     });
+    chatInput.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") chatInput.blur();
+    });
+
+    // Tools row above the chat box. The home warp (icon) sits at its left; the
+    // cosmetics toggle (ensureHatUI) is appended to its right.
+    toolsRow = document.createElement("div");
+    toolsRow.className = "creature-tools";
+
+    var home = document.createElement("button");
+    home.type = "button";
+    home.className = "btn btn-home";
+    // Warp back to the group — the escape hatch for an infinite world.
+    home.innerHTML =
+      '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>';
+    home.title = "Home";
+    home.setAttribute("aria-label", "Return to the starting spot");
     home.addEventListener("click", function (e) {
       e.preventDefault();
       homeSelf();
     });
-    chatInput.addEventListener("keydown", function (e) {
-      if (e.key === "Escape") chatInput.blur();
-    });
+
+    toolsRow.appendChild(home);
+    document.body.appendChild(toolsRow);
   }
 
   // ---- hat picker ----
@@ -566,9 +569,9 @@ window.Tubalr = window.Tubalr || {};
     hatBtn = document.createElement("button");
     hatBtn.type = "button";
     hatBtn.className = "btn hat-toggle";
-    hatBtn.textContent = "hats";
-    hatBtn.title = "Hats";
-    hatBtn.setAttribute("aria-label", "Open the hat picker");
+    hatBtn.textContent = "cosmetics";
+    hatBtn.title = "Cosmetics";
+    hatBtn.setAttribute("aria-label", "Open the cosmetics picker");
     hatBtn.setAttribute("aria-expanded", "false");
 
     hatPanel = document.createElement("div");
@@ -579,7 +582,7 @@ window.Tubalr = window.Tubalr || {};
     hatGridEl.className = "hat-grid";
 
     hatPanel.appendChild(hatGridEl);
-    document.body.appendChild(hatBtn);
+    (toolsRow || document.body).appendChild(hatBtn); // right of the home button
     document.body.appendChild(hatPanel);
 
     hatBtn.addEventListener("click", function () {
@@ -706,6 +709,10 @@ window.Tubalr = window.Tubalr || {};
       chatForm.remove();
       chatForm = null;
       chatInput = null;
+    }
+    if (toolsRow) {
+      toolsRow.remove(); // takes the home button and the cosmetics toggle with it
+      toolsRow = null;
     }
     if (unsubHats) {
       unsubHats();

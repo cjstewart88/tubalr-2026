@@ -55,7 +55,7 @@ window.Tubalr = window.Tubalr || {};
   var heartbeatTimer = null;
   var sendTimer = null;
   var hatUnsub = null; // re-announce presence when the equipped hat changes
-  var shareHintTimer = null; // hides the "send this link to friends" nudge
+  var preLiveUrl = null; // address-bar URL before going live, restored on end
   var graceTimer = null;
   var staleTimer = null;
   var joinTimer = null;
@@ -81,6 +81,7 @@ window.Tubalr = window.Tubalr || {};
 
   function shareUrl() {
     var u = new URL(location.href);
+    u.search = ""; // drop any ?only=/?similar=/?genre= static-session param first
     u.searchParams.set("dj", roomId);
     return u.href;
   }
@@ -261,6 +262,7 @@ window.Tubalr = window.Tubalr || {};
   function joinRoom(room) {
     if (!room) return;
     var u = new URL(location.href);
+    u.search = ""; // a clean ?dj= link, never ?only=…&dj=…
     u.searchParams.set("dj", room);
     location.href = u.href;
   }
@@ -296,19 +298,16 @@ window.Tubalr = window.Tubalr || {};
 
   function initDj() {
     if (!Tubalr.supa.getClient()) return; // unconfigured: the button never exists
-    els.row = $("live-row");
     els.goLive = $("btn-go-live");
     els.status = $("live-status");
     els.count = $("live-count");
-    els.url = $("live-url");
-    els.copy = $("btn-copy-live");
     els.end = $("btn-end-live");
-    els.shareHint = $("live-share-hint");
-    if (!els.row) return;
-    els.row.hidden = false; // .now-playing gates visibility until a session runs
+    if (!els.goLive) return;
+    // The controls row is always shown once a session runs (it hosts the Share
+    // button too); only the "go live" button is Supabase-gated.
+    els.goLive.hidden = false;
     els.goLive.addEventListener("click", goLive);
     els.end.addEventListener("click", endBroadcast);
-    els.copy.addEventListener("click", copyShareUrl);
     initLobby(); // watch the home-screen directory (and reuse it to announce later)
   }
 
@@ -364,12 +363,16 @@ window.Tubalr = window.Tubalr || {};
     els.goLive.hidden = true;
     els.goLive.disabled = false;
     els.status.hidden = false;
-    els.url.value = shareUrl();
-    // The share nudge earns its keep for a moment, then gets out of the way.
-    els.shareHint.hidden = false;
-    shareHintTimer = setTimeout(function () {
-      els.shareHint.hidden = true;
-    }, 10000);
+    // Put the broadcast link in the address bar (replacing the ?only=/… query the
+    // DJ started from) so it's copyable straight from there. Stash the old URL to
+    // restore when the stream ends.
+    preLiveUrl = location.href;
+    try {
+      history.replaceState(null, "", shareUrl());
+    } catch (e) {
+      /* cosmetic — the Share button still copies the link either way */
+    }
+    Tubalr.ui.toast("You're live!");
     sendState();
   }
 
@@ -407,20 +410,12 @@ window.Tubalr = window.Tubalr || {};
     send("end", {}); // best-effort; listeners also have grace/stale detection
   }
 
-  function copyShareUrl() {
-    var url = els.url.value;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(url).then(
-        function () {
-          Tubalr.ui.toast("Broadcast link copied.");
-        },
-        function () {
-          els.url.select();
-        }
-      );
-    } else {
-      els.url.select();
-    }
+  // The single Share button (js/ui.js) asks for this: the clean ?dj= link whenever
+  // we're on a broadcast channel — as the DJ or as a listener (a listener shares
+  // the same room they're in) — else null so it falls back to the static session
+  // link.
+  function broadcastUrl() {
+    return channel ? shareUrl() : null;
   }
 
   function endBroadcast() {
@@ -435,8 +430,6 @@ window.Tubalr = window.Tubalr || {};
     heartbeatTimer = null;
     if (sendTimer) clearTimeout(sendTimer);
     sendTimer = null;
-    if (shareHintTimer) clearTimeout(shareHintTimer);
-    shareHintTimer = null;
     window.removeEventListener("beforeunload", confirmLeave);
     window.removeEventListener("pagehide", onPageHide);
     Tubalr.player.setStateHook(null);
@@ -444,6 +437,16 @@ window.Tubalr = window.Tubalr || {};
     lobbyWithdraw(); // delist from the home screen (channel stays for discovery)
     dropChannel();
     role = null;
+    // Restore the static-session URL the DJ was on before going live, so the bar
+    // isn't left showing a now-dead ?dj= link.
+    if (preLiveUrl) {
+      try {
+        history.replaceState(null, "", preLiveUrl);
+      } catch (e) {
+        /* cosmetic */
+      }
+      preLiveUrl = null;
+    }
     if (els.status) els.status.hidden = true;
     if (els.goLive) {
       els.goLive.hidden = false;
@@ -591,26 +594,15 @@ window.Tubalr = window.Tubalr || {};
     onPresenceSync();
   }
 
+  // A listener reuses the DJ's live-status (LIVE badge + count) in the shared
+  // .live-row, so it sits on the same line as the Share button. The disconnect
+  // link inside it is hidden for listeners via CSS (body.listener #btn-end-live).
   function buildListenerBar() {
-    var frame = document.querySelector(".player-frame");
-    if (!frame) return;
-    els.bar = document.createElement("div");
-    els.bar.className = "listener-bar";
-
-    var badge = document.createElement("span");
-    badge.className = "live-badge";
-    var dot = document.createElement("span");
-    dot.className = "live-dot";
-    badge.appendChild(dot);
-    badge.appendChild(document.createTextNode("LIVE"));
-
-    els.barCount = document.createElement("span");
-    els.barCount.className = "live-count";
+    els.status = $("live-status");
+    els.barCount = $("live-count");
+    if (!els.status) return;
     els.barCount.textContent = "1 listening";
-
-    els.bar.appendChild(badge);
-    els.bar.appendChild(els.barCount);
-    frame.parentNode.insertBefore(els.bar, frame.nextSibling);
+    els.status.hidden = false;
   }
 
   // Watches the player's own notifies to tell a *local* pause (DJ still playing,
@@ -650,11 +642,8 @@ window.Tubalr = window.Tubalr || {};
     joined = false;
     localPaused = false;
     document.body.classList.remove("listener");
-    if (els.bar) {
-      els.bar.remove();
-      els.bar = null;
-      els.barCount = null;
-    }
+    if (els.status) els.status.hidden = true; // hide the LIVE badge/count again
+    els.barCount = null;
     stripDjParam();
     Tubalr.ui.toast(msg);
   }
@@ -711,5 +700,6 @@ window.Tubalr = window.Tubalr || {};
   Tubalr.live = {
     initDj: initDj,
     initListener: initListener,
+    broadcastUrl: broadcastUrl,
   };
 })(window.Tubalr);

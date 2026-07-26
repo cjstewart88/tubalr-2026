@@ -40,11 +40,26 @@ window.Tubalr = window.Tubalr || {};
       showConfigBanner();
       Tubalr.ui.setStatus("Add your API keys in js/config.js to get started.", true);
     }
+    var params = new URLSearchParams(location.search);
     // DJ mode: a ?dj=<room> link joins that broadcast as a listener; otherwise
     // just arm the "go live" button. Both are silent no-ops without Supabase.
-    var room = new URLSearchParams(location.search).get("dj");
-    if (room) Tubalr.live.initListener(room);
-    else Tubalr.live.initDj();
+    var room = params.get("dj");
+    if (room) {
+      Tubalr.live.initListener(room);
+    } else {
+      Tubalr.live.initDj();
+      // Shareable static session: ?only= / ?similar= / ?genre= boots that session
+      // on load (the same links ui.js writes into the bar on every build). A ?dj=
+      // listener link takes precedence — you can't be both. First match wins.
+      var modes = ["only", "similar", "genre"];
+      for (var i = 0; i < modes.length; i++) {
+        var value = params.get(modes[i]);
+        if (value) {
+          Tubalr.ui.autoStart(modes[i], value);
+          break;
+        }
+      }
+    }
     loadYouTubeApi();
   }
 

@@ -95,21 +95,29 @@
       <div class="player-frame">
         <div id="player"></div>
       </div>
-      <!-- DJ mode (js/live.js): hidden until Supabase is configured; the whole
-           section is already display:none until a session runs, so "go live"
-           only ever appears under an actual player. Sits after .player-frame,
-           never inside it — the frame is overflow:hidden. -->
-      <div class="live-row" id="live-row" hidden>
-        <button type="button" id="btn-go-live" class="btn btn-go-live"
+      <!-- One controls line, directly under the player (never inside .player-frame
+           — it's overflow:hidden). Everything lives on this single flex row so
+           there's never a second line of buttons:
+           - "go live" (js/live.js): starts hidden, unhidden only when Supabase is
+             configured; hidden again while broadcasting.
+           - #live-status (display:contents, see CSS): its badge/count/end join
+             this same flex line while broadcasting.
+           - the one Share button: always present once a session runs, whatever
+             the Supabase/broadcast state. It copies the broadcast link while live
+             (js/ui.js asks Tubalr.live.broadcastUrl()), else the static session
+             link the address bar already shows. -->
+      <div class="live-row" id="live-row">
+        <button type="button" id="btn-go-live" class="btn btn-go-live" hidden
           title="Start a live broadcast: you get a link, and anyone who opens it hears your session in real time.">go live</button>
         <div id="live-status" class="live-status" hidden>
+          <button type="button" id="btn-end-live" class="end-link" title="End Stream" aria-label="End Stream">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+          </button>
           <span class="live-badge"><span class="live-dot"></span>LIVE</span>
           <span id="live-count" class="live-count">0 listening</span>
-          <input id="live-url" class="live-url" type="text" readonly aria-label="Broadcast link" />
-          <button type="button" id="btn-copy-live" class="btn btn-live-sm">copy</button>
-          <button type="button" id="btn-end-live" class="btn btn-live-sm">end</button>
-          <p id="live-share-hint" class="live-share-hint">You're on the air — send this link to friends and they'll hear exactly what you're hearing.</p>
         </div>
+        <button type="button" id="btn-share" class="btn btn-share"
+          title="Copy a link to this session — anyone who opens it hears the same playlist.">Share</button>
       </div>
     </section>
   </main>

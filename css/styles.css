@@ -766,11 +766,50 @@ body:has(#playlist li) .playlist-col { display: flex; }
 
 /* Row under the player: the "go live" button, swapped for the live status
    cluster once broadcasting. Hidden entirely when Supabase isn't configured. */
+/* The single controls line under the player: "go live" (or the disconnect/LIVE/
+   count cluster while broadcasting) packed left, the one Share button pushed to
+   the right (margin-left:auto). nowrap so the buttons never spill to a second
+   line — the content is small enough to stay single-line even on a phone. */
 .live-row {
   display: flex;
-  justify-content: flex-start;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-start; /* controls pack left; Share pushes to the right */
+  gap: 8px;
   margin-top: 10px;
 }
+
+/* Compact + mono like the DJ controls, but neutral ink — the accent is reserved
+   for the "go live"/LIVE affordances, so sharing a plain session doesn't shout as
+   loudly. Revealed with the rest of .now-playing once a queue exists. */
+.btn-share {
+  height: 28px;
+  min-width: 0;
+  margin-left: auto; /* sit hard against the right edge, controls to its left */
+  padding: 0 12px;
+  color: var(--text);
+  font: 11px var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.btn-share:hover { color: var(--text-strong); }
+
+/* "end" is a bare disconnect link, not a chiselled button — it sits left of the
+   LIVE badge and only reveals its intent on hover (red) and via its tooltip. */
+.end-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px;
+  color: var(--text);
+  background: none;
+  border: none;
+  box-shadow: none;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.end-link:hover { color: #e0616b; }
+.end-link svg { display: block; }
 .live-row[hidden] { display: none; }
 
 .btn-go-live {
@@ -783,13 +822,11 @@ body:has(#playlist li) .playlist-col { display: flex; }
   text-transform: uppercase;
 }
 
+/* Not its own box: its children (badge/count/end/hint) become flex items of the
+   shared .live-row line, so the DJ controls and the Share button sit together on
+   one line rather than stacking into a second row. */
 .live-status {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
+  display: contents;
 }
 .live-status[hidden] { display: none; }
 
@@ -829,49 +866,6 @@ body:has(#playlist li) .playlist-col { display: flex; }
   color: var(--text);
   font: 11px var(--font-mono);
   white-space: nowrap;
-}
-
-/* The shareable link: a sunken field like the search input, ellipsized. */
-.live-url {
-  flex: 1 1 120px;
-  min-width: 0;
-  height: 28px;
-  padding: 0 8px;
-  color: var(--text-strong);
-  font: 11px var(--font-mono);
-  background: var(--field-bg);
-  border: 1px solid var(--field-border);
-  border-radius: 2px;
-  box-shadow: var(--bevel-in);
-  outline: none;
-  text-overflow: ellipsis;
-}
-
-.btn-live-sm {
-  height: 28px;
-  min-width: 0;
-  padding: 0 10px;
-  font-size: 11px;
-}
-
-/* One-line nudge under the live status row (flex-basis wraps it onto its own
-   line beneath the url field): tells the DJ what the link is for. */
-.live-share-hint {
-  flex-basis: 100%;
-  margin: 2px 0 0;
-  color: #7a7a7a;
-  font-size: 11px;
-  text-align: center;
-}
-
-/* What a listener sees under the player instead of the go-live row: just the
-   badge and the count sitting flush left, no boxed container around them. */
-.listener-bar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 10px;
-  margin-top: 10px;
 }
 
 /* Full-screen gate a broadcast link lands on: unmuted playback needs a click,
@@ -1605,27 +1599,33 @@ body:has(#playlist li) .playlist-col { display: flex; }
 }
 .creature-chat input:focus { border-color: var(--accent); }
 
-.creature-chat .btn {
-  height: 30px;
-  min-width: 0;
-  padding: 0 12px;
-  font-size: 12px;
-}
-
-/* The "teleport home" warp sits beside "say"; nowrap keeps its label on one line. */
-.creature-chat .btn-home {
-  white-space: nowrap;
-}
-
-/* ---------- Hat picker ---------- */
-/* The "hats" button sits just above the chat box; the panel pops up from it.
-   Both are fixed like the chat box so the creature layer stays click-through
-   (creatures.js lists .hat-panel in CLICK_IGNORE). */
-.hat-toggle {
+/* Tools row above the chat box: the home warp (icon) at the left, the cosmetics
+   toggle at the right. Fixed like the chat box so the creature layer stays
+   click-through (creatures.js lists .creature-tools + .hat-panel in CLICK_IGNORE). */
+.creature-tools {
   position: fixed;
   left: 12px;
   bottom: 48px; /* chat row (30px) + its 12px inset + 6px gap */
   z-index: 2;
+  display: flex;
+  gap: 6px;
+}
+
+/* The home warp is an icon button, sized to match the cosmetics toggle beside it. */
+.btn-home {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  min-width: 0;
+  padding: 0 10px;
+}
+.btn-home svg { display: block; }
+
+/* ---------- Hat picker ---------- */
+/* The cosmetics toggle sits in the tools row; the panel pops up from it, fixed
+   like the chat box. */
+.hat-toggle {
   height: 30px;
   min-width: 0;
   padding: 0 12px;
@@ -1867,7 +1867,11 @@ body.listener #btn-shuffle,
 body.listener #btn-prev,
 body.listener #btn-next,
 body.listener #btn-repeat,
-body.listener #live-row { display: none; }
+body.listener #btn-end-live { display: none; }
+/* #live-row stays visible for listeners — it hosts the Share button plus the
+   LIVE badge/count (live-status, shown by buildListenerBar) on one line. go-live
+   stays hidden via its `hidden` attribute; the disconnect link is hidden just
+   above (a listener has no stream to end). */
 
 body.listener .playlist li {
   cursor: default;
@@ -1879,7 +1883,7 @@ body.listener .playlist li {
    cluster rides the same lift, keeping its 6px rhythm above the chat row. */
 @media (max-width: 860px) {
   .creature-chat { bottom: calc(72px + env(safe-area-inset-bottom)); }
-  .hat-toggle { bottom: calc(108px + env(safe-area-inset-bottom)); }
+  .creature-tools { bottom: calc(108px + env(safe-area-inset-bottom)); }
   .hat-panel {
     bottom: calc(144px + env(safe-area-inset-bottom));
     max-height: calc(100vh - 160px - env(safe-area-inset-bottom));
