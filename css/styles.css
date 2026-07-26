@@ -1547,7 +1547,7 @@ body:has(#playlist li) .playlist-col { display: flex; }
   white-space: nowrap;
 }
 
-/* ---------- Hat shop ---------- */
+/* ---------- Hat picker ---------- */
 /* The "hats" button sits just above the chat box; the panel pops up from it.
    Both are fixed like the chat box so the creature layer stays click-through
    (creatures.js lists .hat-panel in CLICK_IGNORE). */
@@ -1580,14 +1580,6 @@ body:has(#playlist li) .playlist-col { display: flex; }
   box-shadow: var(--bevel-out), 0 8px 20px rgba(0, 0, 0, 0.5);
 }
 
-.hat-panel-head {
-  display: flex;
-  align-items: center;
-  padding: 2px 2px 8px;
-  color: var(--text-strong);
-  font: 12px var(--font-mono);
-}
-
 .hat-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -1610,11 +1602,7 @@ body:has(#playlist li) .playlist-col { display: flex; }
   box-shadow: var(--bevel-in);
   cursor: pointer;
 }
-.hat-cell:hover:not(:disabled) { border-color: var(--accent); }
-.hat-cell:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
+.hat-cell:hover { border-color: var(--accent); }
 .hat-cell.equipped {
   color: #14101c;
   background: var(--accent);
@@ -1640,7 +1628,6 @@ body:has(#playlist li) .playlist-col { display: flex; }
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.hat-cell .hat-price { font-size: 9px; }
 
 /* ---------- Responsive: dock the panel below on narrow screens ---------- */
 @media (max-width: 860px) {

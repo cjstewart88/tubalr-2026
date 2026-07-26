@@ -354,9 +354,6 @@ window.Tubalr = window.Tubalr || {};
     cb = Object.assign(cb, callbacks || {});
     youtube.setHandlers({
       onEnded: function () {
-        // A finished track earns coins for whoever heard it — including
-        // follow-mode listeners, whose own player fires ENDED too.
-        if (Tubalr.hats) Tubalr.hats.awardListen();
         if (followMode) {
           // The listener's copy finished slightly ahead of the DJ's. Don't
           // self-advance: it would race the DJ's own track-change broadcast

@@ -145,8 +145,8 @@ window.Tubalr = window.Tubalr || {};
     channel.track(payload).then(function () {}, function () {});
   }
 
-  // hats.onChange also fires on every coin award (each finished track), so only
-  // an actual hat change re-tracks — presence updates stay rare.
+  // Only an actual hat change re-tracks — presence updates stay rare even if
+  // hats.onChange ever grows more triggers than equip changes.
   function watchHat() {
     if (!Tubalr.hats || hatUnsub) return;
     var lastHat = Tubalr.hats.getEquipped();

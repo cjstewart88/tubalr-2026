@@ -44,9 +44,8 @@ window.Tubalr = window.Tubalr || {};
   var flora = null; // .flora sub-layer (painted under the creatures)
   var chatForm = null;
   var chatInput = null;
-  var hatBtn = null; // opens the hat shop; sits just above the chat cluster
+  var hatBtn = null; // opens the hat picker; sits just above the chat cluster
   var hatPanel = null;
-  var hatCoinsEl = null;
   var hatGridEl = null;
   var unsubHats = null; // Tubalr.hats.onChange unsubscriber
   var onHatDocDown = null; // document listeners that close the open panel
@@ -555,12 +554,12 @@ window.Tubalr = window.Tubalr || {};
     });
   }
 
-  // ---- hat shop ----
+  // ---- hat picker ----
 
-  // The "hats" button above "say something…" opens a small shop panel: a grid of
-  // every catalog hat rendered as a live CSS preview (the exact markup the
-  // creatures wear, scaled up). Buying equips immediately; clicking the worn
-  // hat takes it off. All state lives in Tubalr.hats — this is just the face.
+  // The "hats" button above "say something…" opens a small picker panel: a grid
+  // of every catalog hat rendered as a live CSS preview (the exact markup the
+  // creatures wear, scaled up). Every hat is free — clicking one equips it,
+  // clicking the worn hat takes it off. State lives in Tubalr.hats.
   function ensureHatUI() {
     if (hatBtn || !Tubalr.hats) return;
 
@@ -568,24 +567,17 @@ window.Tubalr = window.Tubalr || {};
     hatBtn.type = "button";
     hatBtn.className = "btn hat-toggle";
     hatBtn.textContent = "hats";
-    hatBtn.title = "Coins & hats";
-    hatBtn.setAttribute("aria-label", "Open the hat shop");
+    hatBtn.title = "Hats";
+    hatBtn.setAttribute("aria-label", "Open the hat picker");
     hatBtn.setAttribute("aria-expanded", "false");
 
     hatPanel = document.createElement("div");
     hatPanel.className = "hat-panel";
     hatPanel.hidden = true;
 
-    var head = document.createElement("div");
-    head.className = "hat-panel-head";
-    hatCoinsEl = document.createElement("span");
-    hatCoinsEl.className = "hat-coins";
-    head.appendChild(hatCoinsEl);
-
     hatGridEl = document.createElement("div");
     hatGridEl.className = "hat-grid";
 
-    hatPanel.appendChild(head);
     hatPanel.appendChild(hatGridEl);
     document.body.appendChild(hatBtn);
     document.body.appendChild(hatPanel);
@@ -617,31 +609,24 @@ window.Tubalr = window.Tubalr || {};
 
   function onHatCellClick(e) {
     var cell = e.target.closest ? e.target.closest(".hat-cell") : null;
-    if (!cell || cell.disabled) return;
+    if (!cell) return;
     var id = cell.getAttribute("data-id");
     var hats = Tubalr.hats;
-    if (hats.getEquipped() === id) hats.setEquipped(null);
-    else if (hats.owns(id)) hats.setEquipped(id);
-    else hats.buy(id);
-    // Every branch emits onChange, which re-renders the panel and re-hats self.
+    hats.setEquipped(hats.getEquipped() === id ? null : id);
+    // setEquipped emits onChange, which re-renders the panel and re-hats self.
   }
 
   function renderHatPanel() {
     if (!hatPanel || hatPanel.hidden) return;
     var hats = Tubalr.hats;
-    var coins = hats.getCoins();
     var equipped = hats.getEquipped();
-    hatCoinsEl.textContent = "⛁ " + coins + " coins";
     hatGridEl.textContent = ""; // rebuild — 20 cells is cheap
 
     hats.CATALOG.forEach(function (h) {
-      var owned = hats.owns(h.id);
       var cell = document.createElement("button");
       cell.type = "button";
-      cell.className =
-        "hat-cell" + (owned ? " owned" : "") + (equipped === h.id ? " equipped" : "");
+      cell.className = "hat-cell" + (equipped === h.id ? " equipped" : "");
       cell.setAttribute("data-id", h.id);
-      if (!owned && coins < h.price) cell.disabled = true;
 
       var preview = document.createElement("div");
       preview.className = "hat-preview";
@@ -653,15 +638,9 @@ window.Tubalr = window.Tubalr || {};
       name.className = "hat-name";
       name.textContent = h.name;
 
-      var price = document.createElement("div");
-      price.className = "hat-price";
-      price.textContent =
-        equipped === h.id ? "wearing" : owned ? "owned" : "⛁ " + h.price;
-
       cell.appendChild(preview);
       cell.appendChild(name);
-      cell.appendChild(price);
-      cell.title = owned ? h.name : h.name + " — " + h.price + " coins";
+      cell.title = h.name;
       hatGridEl.appendChild(cell);
     });
   }
@@ -673,7 +652,7 @@ window.Tubalr = window.Tubalr || {};
     ensureChatForm();
     ensureHatUI();
     selfId = opts.selfId;
-    // Coins/hat changes: re-dress our own creature and refresh the open panel.
+    // Hat changes: re-dress our own creature and refresh the open panel.
     if (Tubalr.hats && !unsubHats) {
       unsubHats = Tubalr.hats.onChange(function () {
         var self = creatures[selfId];
@@ -741,7 +720,6 @@ window.Tubalr = window.Tubalr || {};
       hatPanel.remove();
       hatBtn = null;
       hatPanel = null;
-      hatCoinsEl = null;
       hatGridEl = null;
     }
   }
