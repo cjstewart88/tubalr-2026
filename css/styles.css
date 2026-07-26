@@ -289,6 +289,75 @@ a { color: inherit; text-decoration: none; }
 .genre-chip-more,
 .genre-chip-collapse { color: var(--accent); }
 
+/* Small dim header above each landing pill group (Recents / Genres / Live DJs).
+   Lives inside its section, so it hides whenever the section is empty/hidden. */
+.section-head {
+  margin: 0 0 10px;
+  color: #6f6a80;
+  font: 11px var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+}
+/* Live DJs earns the on-air dot beside its header. */
+.section-head-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--accent);
+}
+
+/* ---------- Live DJs directory (landing view only) ---------- */
+.live-djs {
+  max-width: 460px;
+  margin: 26px auto 0;
+  text-align: center;
+}
+.live-dj-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* Same proud-standing bevelled shell as .genre-chip, with the on-air dot and a
+   dimmed "radio" tag — the pill is a shortcut into an in-progress broadcast. */
+.live-dj-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 260px;
+  padding: 6px 12px;
+  color: var(--text-strong);
+  font: 12px var(--font-mono);
+  background: linear-gradient(#2c2839, #232030);
+  border: 1px solid var(--field-border);
+  border-radius: 2px;
+  box-shadow: var(--bevel-out);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.live-dj-chip:hover { border-color: var(--accent); }
+.live-dj-chip:active {
+  background: linear-gradient(#232030, #2c2839);
+  box-shadow: var(--bevel-in);
+}
+.live-dj-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Matches .recent-chip-mode: dimmed at rest so the artist reads first, accent on
+   hover — keeps the three landing pill groups looking like one family. */
+.live-dj-tag {
+  color: var(--text);
+  font-size: 10px;
+  text-transform: lowercase;
+}
+.live-dj-chip:hover .live-dj-tag { color: var(--accent); }
+
 /* Toast — the only status surface; errors slide up from the bottom on .show and
    auto-dismiss. Mobile lifts it clear of the pinned transport bar. */
 .toast {
@@ -663,6 +732,7 @@ body:has(#playlist li) .recent { display: none; }
 /* Genre chips stay put even once recents show (unlike .hint below) — they're a
    permanent shortcut, not intro copy to be replaced. */
 body:has(#playlist li) .genre-chips { display: none; }
+body:has(#playlist li) .live-djs { display: none; }
 /* Recents replace the intro copy: once #recent is populated (its [hidden]
    attribute cleared by ui.js), drop the hint. */
 body:has(#recent:not([hidden])) .hint { display: none; }
@@ -1688,6 +1758,7 @@ body:has(#playlist li) .playlist-col { display: flex; }
      a session, so this only affects the homescreen). */
   .recent-chip-play { min-height: 40px; font-size: 13px; }
   .recent-chip-remove { width: 40px; font-size: 18px; }
+  .live-dj-chip { min-height: 40px; font-size: 13px; }
   .panel-tab { min-height: 44px; font-size: 12px; }
 
   /* No hover on touch: the kebab is always shown, and both it and the menu
@@ -1789,6 +1860,7 @@ body.listener .search,
 body.listener .hint,
 body.listener .recent,
 body.listener .genre-chips,
+body.listener .live-djs,
 body.listener #tab-recent,
 body.listener .row-menu,
 body.listener #btn-shuffle,

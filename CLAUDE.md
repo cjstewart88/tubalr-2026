@@ -244,6 +244,25 @@ silently no-ops when Supabase isn't configured. Things to preserve:
   live.js re-`track()`s presence **only on an actual hat change** (the diff check in
   `watchHat`) — keep presence updates rare. Hats cost zero YouTube quota and no
   Supabase schema.
+- **Home-screen live-DJ directory** (`js/live.js` lobby section + `#live-djs` in
+  `index.html`): a single shared, tableless `lobby` presence channel is how landing
+  visitors discover in-progress broadcasts. Every landing page subscribes to it
+  **read-only** (`initLobby`, called from `initDj`) — passive watchers never `track()`,
+  so they don't appear in presence and don't pollute the roster. A DJ reuses that same
+  channel to announce itself as `{ roomId, label, listeners }` (label = now-playing
+  artist; listeners = the count off its own `dj:` channel, rendered as the pill's "N
+  listeners" tag) on going live (`lobbyAnnounce`), and refreshes via `lobbyRefresh`
+  (deduped on a `label|listeners` signature — only re-`track()`s when the song or the
+  count actually changes; driven from both `sendState` and the DJ's `onPresenceSync`),
+  and withdraws on end (`lobbyWithdraw`; a closed tab auto-leaves via presence). Pills
+  render from presence, filtering out our own `lobbyKey`; clicking one just navigates to
+  `?dj=<roomId>` (the normal listener path — join overlay, autoplay gate). **This makes
+  every broadcast publicly listed** (previously they were link-only/unlisted) — that's the
+  intended behaviour, not an accident. Labels render via `textContent`, clamped to 60
+  chars both ends. No schema, no new config keys; silent no-op without Supabase (the
+  section stays hidden). The three landing pill groups (Recents / Genres / Live DJs) each
+  carry a small dim `.section-head`; a header lives *inside* its section so it hides with
+  it, and the intro `.hint` shows whenever there are no recents.
 - **`beforeunload` shows generic browser text only** — the "ends your stream" wording
   can't be customized; that's a platform limit.
 - Known v1 limitation: on the ≤600px app shell the phone user barely sees their own

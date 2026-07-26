@@ -15,6 +15,13 @@
 //                      x/y are absolute *world* px (one shared coordinate space),
 //                      not viewport fractions — see the header in creatures.js.
 //   chat   any → all  { id, text }              — clamped to 120 chars both ends.
+//
+// Plus a single shared, tableless `lobby` presence channel — the home-screen
+// directory of live broadcasts. Landing pages subscribe read-only (they never
+// track(), so passive visitors don't appear); a live DJ tracks presence there
+// as { roomId, label, listeners } (label = the now-playing artist), refreshed on
+// song change or listener-count change and withdrawn on end. Clicking a pill
+// just opens ?dj=<roomId>.
 window.Tubalr = window.Tubalr || {};
 
 (function (Tubalr) {
@@ -29,10 +36,17 @@ window.Tubalr = window.Tubalr || {};
   var DJ_COLOR = "#a06bff"; // --accent; keep in sync with styles.css
   var PALETTE = ["#7fd6a4", "#6bb8ff", "#ffb86b", "#ff6b9e", "#ede480", "#63e0e0", "#c98bff", "#8bdff0"];
 
+  var LOBBY_LABEL_MAX = 60; // artist names are short; clamp anything hostile
+
   var channel = null;
   var role = null; // "dj" | "listener" | null
   var clientId = null;
   var roomId = null;
+  var lobbyChannel = null; // shared discovery channel every live DJ announces on
+  var lobbyKey = null; // our presence key on the lobby (distinct from clientId)
+  var lobbySig = null; // last announced "label|listeners" (dedupes re-tracks)
+  var djListeners = 0; // listeners on our own dj channel, mirrored into the pill
+  var lobbyList = null; // <ul> the discovery pills render into
   var seq = 0; // DJ: last sent; listener: last accepted (stale-drop filter)
   var lastState = null; // listener: newest DJ state, stamped with receivedAt
   var joined = false; // listener clicked through the autoplay gate
@@ -132,6 +146,10 @@ window.Tubalr = window.Tubalr || {};
     var label = listeners + " listening";
     if (els.count) els.count.textContent = label;
     if (els.barCount) els.barCount.textContent = label;
+    if (role === "dj") {
+      djListeners = listeners;
+      lobbyRefresh(); // reflect the new count on the home-screen pill
+    }
   }
 
   // Presence carries static identity plus the equipped hat id. Re-tracking
@@ -165,6 +183,115 @@ window.Tubalr = window.Tubalr || {};
     });
   }
 
+  // ------------------------------------------------------- lobby (discovery)
+  // A single tableless `lobby` presence channel is the home-screen directory of
+  // in-progress broadcasts. Passive visitors subscribe read-only (they never
+  // track(), so they don't appear in presence); a DJ announces itself here with
+  // { roomId, label } while live. Like everything else, a silent no-op without
+  // Supabase — the section just stays hidden.
+
+  function nowPlayingLabel() {
+    var snap = Tubalr.player.getSnapshot();
+    var t = snap.queue && snap.queue[snap.currentIndex];
+    var name = t && t.artist ? String(t.artist) : "";
+    return name.slice(0, LOBBY_LABEL_MAX);
+  }
+
+  // Landing pages call this to watch the lobby and render pills. The same
+  // channel is reused to announce when this visitor later goes live.
+  function initLobby() {
+    if (lobbyChannel) return;
+    var client = Tubalr.supa.getClient();
+    if (!client) return;
+    lobbyList = $("live-dj-list");
+    if (!lobbyList) return;
+    lobbyKey = randId(8);
+    lobbyChannel = client.channel("lobby", {
+      config: { presence: { key: lobbyKey } },
+    });
+    lobbyChannel
+      .on("presence", { event: "sync" }, renderLobby)
+      .subscribe(function () {}); // errors are non-fatal: no pills, no harm
+  }
+
+  function renderLobby() {
+    if (!lobbyChannel || !lobbyList) return;
+    var section = $("live-djs");
+    var state = lobbyChannel.presenceState();
+    var djs = [];
+    Object.keys(state).forEach(function (key) {
+      if (key === lobbyKey) return; // never list our own broadcast
+      var meta = state[key][0] || {};
+      if (meta.roomId) djs.push(meta);
+    });
+
+    lobbyList.textContent = "";
+    djs.forEach(function (dj) {
+      var li = document.createElement("li");
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "live-dj-chip";
+
+      var name = document.createElement("span");
+      name.className = "live-dj-name";
+      name.textContent = (dj.label || "").slice(0, LOBBY_LABEL_MAX) || "a live set";
+      var tag = document.createElement("span");
+      tag.className = "live-dj-tag";
+      tag.textContent = listenerText(dj.listeners);
+
+      btn.appendChild(name);
+      btn.appendChild(tag);
+      btn.addEventListener("click", function () {
+        joinRoom(dj.roomId);
+      });
+      li.appendChild(btn);
+      lobbyList.appendChild(li);
+    });
+
+    if (section) section.hidden = djs.length === 0;
+  }
+
+  function listenerText(n) {
+    n = n || 0;
+    return n === 1 ? "1 listener" : n + " listeners";
+  }
+
+  // Joining a listed DJ is just opening its share link: navigate to ?dj=<room>
+  // so app.js routes into initListener (join overlay, autoplay gate, the works).
+  function joinRoom(room) {
+    if (!room) return;
+    var u = new URL(location.href);
+    u.searchParams.set("dj", room);
+    location.href = u.href;
+  }
+
+  // DJ side of the lobby: announce/refresh/withdraw our listing. The pill carries
+  // the now-playing artist and our current listener count; re-track()s are deduped
+  // so presence updates only fire when one of those actually changes.
+  function lobbyAnnounce() {
+    lobbySig = null; // force the first track() on going live
+    lobbyRefresh();
+  }
+
+  function lobbyRefresh() {
+    if (!lobbyChannel || role !== "dj") return;
+    var label = nowPlayingLabel();
+    var sig = label + "|" + djListeners;
+    if (sig === lobbySig) return; // no song change and no listener change
+    lobbySig = sig;
+    lobbyChannel
+      .track({ roomId: roomId, label: label, listeners: djListeners })
+      .then(noop, noop);
+  }
+
+  function lobbyWithdraw() {
+    if (!lobbyChannel) return;
+    lobbySig = null;
+    lobbyChannel.untrack().then(noop, noop);
+  }
+
+  function noop() {}
+
   // ---------------------------------------------------------------- DJ side
 
   function initDj() {
@@ -182,6 +309,7 @@ window.Tubalr = window.Tubalr || {};
     els.goLive.addEventListener("click", goLive);
     els.end.addEventListener("click", endBroadcast);
     els.copy.addEventListener("click", copyShareUrl);
+    initLobby(); // watch the home-screen directory (and reuse it to announce later)
   }
 
   function goLive() {
@@ -228,6 +356,7 @@ window.Tubalr = window.Tubalr || {};
     Tubalr.creatures.poke(); // tell the room where we spawned
     trackPresence();
     watchHat();
+    lobbyAnnounce(); // list this broadcast on the home screen
     Tubalr.player.setStateHook(queueStateSend);
     heartbeatTimer = setInterval(sendState, HEARTBEAT_MS);
     window.addEventListener("beforeunload", confirmLeave);
@@ -254,6 +383,7 @@ window.Tubalr = window.Tubalr || {};
 
   function sendState() {
     if (!channel || role !== "dj") return;
+    lobbyRefresh(); // keep the home-screen pill's now-playing label current
     var snap = Tubalr.player.getSnapshot();
     send("state", {
       seq: ++seq,
@@ -311,6 +441,7 @@ window.Tubalr = window.Tubalr || {};
     window.removeEventListener("pagehide", onPageHide);
     Tubalr.player.setStateHook(null);
     Tubalr.creatures.stop();
+    lobbyWithdraw(); // delist from the home screen (channel stays for discovery)
     dropChannel();
     role = null;
     if (els.status) els.status.hidden = true;

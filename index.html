@@ -65,6 +65,7 @@
     <!-- Recent searches (landing view only; hidden once a session runs, like the
          hint). Populated from localStorage by ui.js; stays hidden while empty. -->
     <section class="recent" id="recent" hidden>
+      <p class="section-head">Recents</p>
       <ul id="recent-list" class="recent-list"></ul>
     </section>
 
@@ -75,7 +76,19 @@
          js/genres.js's MRU-ordered, localStorage-backed list; only the first
          few show until "+N more" is clicked. -->
     <section class="genre-chips" id="genre-chips">
+      <p class="section-head">Genres</p>
       <ul id="genre-chip-list" class="genre-chip-list"></ul>
+    </section>
+
+    <!-- Live DJs directory (landing view only): a shared Supabase Realtime
+         "lobby" presence channel that every live DJ announces themselves on, so
+         home-screen visitors can discover in-progress broadcasts and jump
+         straight in as a listener. Populated by js/live.js; stays hidden while
+         nobody's live. Like the shared cache / DJ mode, a silent no-op without
+         Supabase. -->
+    <section class="live-djs" id="live-djs" hidden>
+      <p class="section-head section-head-live"><span class="live-dot"></span>Live DJs</p>
+      <ul id="live-dj-list" class="live-dj-list"></ul>
     </section>
 
     <section class="now-playing">
