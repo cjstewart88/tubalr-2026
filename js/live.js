@@ -41,6 +41,7 @@ window.Tubalr = window.Tubalr || {};
   var heartbeatTimer = null;
   var sendTimer = null;
   var hatUnsub = null; // re-announce presence when the equipped hat changes
+  var shareHintTimer = null; // hides the "send this link to friends" nudge
   var graceTimer = null;
   var staleTimer = null;
   var joinTimer = null;
@@ -175,6 +176,7 @@ window.Tubalr = window.Tubalr || {};
     els.url = $("live-url");
     els.copy = $("btn-copy-live");
     els.end = $("btn-end-live");
+    els.shareHint = $("live-share-hint");
     if (!els.row) return;
     els.row.hidden = false; // .now-playing gates visibility until a session runs
     els.goLive.addEventListener("click", goLive);
@@ -234,6 +236,11 @@ window.Tubalr = window.Tubalr || {};
     els.goLive.disabled = false;
     els.status.hidden = false;
     els.url.value = shareUrl();
+    // The share nudge earns its keep for a moment, then gets out of the way.
+    els.shareHint.hidden = false;
+    shareHintTimer = setTimeout(function () {
+      els.shareHint.hidden = true;
+    }, 10000);
     sendState();
   }
 
@@ -287,6 +294,8 @@ window.Tubalr = window.Tubalr || {};
   }
 
   function endBroadcast() {
+    // Mirror the navigate-away warning: ending is just as final for listeners.
+    if (!window.confirm("End the stream? Everyone listening will be disconnected.")) return;
     send("end", {});
     teardownDj();
   }
@@ -296,6 +305,8 @@ window.Tubalr = window.Tubalr || {};
     heartbeatTimer = null;
     if (sendTimer) clearTimeout(sendTimer);
     sendTimer = null;
+    if (shareHintTimer) clearTimeout(shareHintTimer);
+    shareHintTimer = null;
     window.removeEventListener("beforeunload", confirmLeave);
     window.removeEventListener("pagehide", onPageHide);
     Tubalr.player.setStateHook(null);

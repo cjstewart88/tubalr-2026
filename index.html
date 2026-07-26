@@ -87,13 +87,15 @@
            only ever appears under an actual player. Sits after .player-frame,
            never inside it — the frame is overflow:hidden. -->
       <div class="live-row" id="live-row" hidden>
-        <button type="button" id="btn-go-live" class="btn btn-go-live">go live</button>
+        <button type="button" id="btn-go-live" class="btn btn-go-live"
+          title="Start a live broadcast: you get a link, and anyone who opens it hears your session in real time.">go live</button>
         <div id="live-status" class="live-status" hidden>
           <span class="live-badge"><span class="live-dot"></span>LIVE</span>
           <span id="live-count" class="live-count">0 listening</span>
           <input id="live-url" class="live-url" type="text" readonly aria-label="Broadcast link" />
           <button type="button" id="btn-copy-live" class="btn btn-live-sm">copy</button>
           <button type="button" id="btn-end-live" class="btn btn-live-sm">end</button>
+          <p id="live-share-hint" class="live-share-hint">You're on the air — send this link to friends and they'll hear exactly what you're hearing.</p>
         </div>
       </div>
     </section>

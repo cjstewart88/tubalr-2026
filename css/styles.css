@@ -698,14 +698,17 @@ body:has(#playlist li) .playlist-col { display: flex; }
    cluster once broadcasting. Hidden entirely when Supabase isn't configured. */
 .live-row {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   margin-top: 10px;
 }
 .live-row[hidden] { display: none; }
 
 .btn-go-live {
+  height: 28px;
+  min-width: 0;
+  padding: 0 12px;
   color: var(--accent);
-  font: 12px var(--font-mono);
+  font: 11px var(--font-mono);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -779,6 +782,16 @@ body:has(#playlist li) .playlist-col { display: flex; }
   min-width: 0;
   padding: 0 10px;
   font-size: 11px;
+}
+
+/* One-line nudge under the live status row (flex-basis wraps it onto its own
+   line beneath the url field): tells the DJ what the link is for. */
+.live-share-hint {
+  flex-basis: 100%;
+  margin: 2px 0 0;
+  color: #7a7a7a;
+  font-size: 11px;
+  text-align: center;
 }
 
 /* What a listener sees under the player instead of the go-live row: just the
